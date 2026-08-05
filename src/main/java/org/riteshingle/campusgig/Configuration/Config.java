@@ -2,6 +2,7 @@ package org.riteshingle.campusgig.Configuration;
 
 import lombok.RequiredArgsConstructor;
 import org.riteshingle.campusgig.Security.JwtRequestFilter;
+import org.riteshingle.campusgig.Security.RateLimitFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.EnableMBeanExport;
@@ -24,6 +25,8 @@ import java.util.List;
 @RequiredArgsConstructor
 public class Config {
     private final JwtRequestFilter jwtRequestFilter;
+    private final RateLimitFilter rateLimitFilter;
+
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http){
         return http.csrf(AbstractHttpConfigurer::disable)
@@ -34,6 +37,7 @@ public class Config {
                 )
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .addFilterBefore(jwtRequestFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(rateLimitFilter,JwtRequestFilter.class)
                 .build();
     }
 
