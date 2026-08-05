@@ -13,7 +13,7 @@ import java.util.Date;
 @Component
 @RequiredArgsConstructor
 public class JwtUtils {
-    private String secreteKey = "jnddsksbvsbvvsshgjhcmvkjsfkjjss nslkshgffsndlkffsvjbjsbnsj";
+    private String secreteKey = "jnddsksbvsbvvsshgjhcmvkjsfkjjssggjfggjfjhj  fgffjfhcfgkjlkbjhjgfguyfysdvcjhsgfgsjchsvjbb nslkshgffsndlkffsvjbjsbnsj";
 
     public SecretKey getKey(){
         return Keys.hmacShaKeyFor(secreteKey.getBytes());

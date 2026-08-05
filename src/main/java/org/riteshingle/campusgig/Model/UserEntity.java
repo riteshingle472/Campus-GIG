@@ -3,6 +3,7 @@ package org.riteshingle.campusgig.Model;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -52,11 +53,19 @@ public class UserEntity {
     private String profileImage;
     private String shortBio;
 
+    private Integer semester;
+
+    @Column(nullable = false)
+    @NotNull(message = "Is verified can not be null")
+    private Boolean isVerified;
+
     @Enumerated(EnumType.STRING)
     private Roles roles;
 
     @Enumerated(EnumType.STRING)
     private AvailabilityStatus availabilityStatus;
+
+    private LocalDate dob;
 
     @CreationTimestamp
     @Column(nullable = false,updatable = false)
@@ -65,4 +74,9 @@ public class UserEntity {
     @UpdateTimestamp
     @Column(nullable = false)
     private LocalDateTime updatedAt;
+
+    @PrePersist
+    public void prePersist(){
+        this.isVerified = false;
+    }
 }
