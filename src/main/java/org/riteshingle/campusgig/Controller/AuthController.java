@@ -2,10 +2,7 @@ package org.riteshingle.campusgig.Controller;
 
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
-import org.riteshingle.campusgig.Repository.LoginRequestDTO;
-import org.riteshingle.campusgig.RequestDTO.CompleteProfileRequestDTO;
-import org.riteshingle.campusgig.RequestDTO.EditProfileRequestDTO;
-import org.riteshingle.campusgig.RequestDTO.RegisterUserRequestDTO;
+import org.riteshingle.campusgig.RequestDTO.*;
 import org.riteshingle.campusgig.ResponseDTO.EditResponseDTO;
 import org.riteshingle.campusgig.Service.AuthService;
 import org.springframework.http.ResponseEntity;
@@ -62,6 +59,11 @@ public class AuthController {
     @PatchMapping("/edit-profile")
     public ResponseEntity<EditResponseDTO> editProfile(@RequestBody EditProfileRequestDTO dto){
         return ResponseEntity.ok(authService.editProfile(dto));
+    }
+
+    @PostMapping("/add-user-skills")
+    public ResponseEntity<String> addSkills(@RequestBody AddUserSkillsRequestDTO dto){
+        return ResponseEntity.ok(authService.addSkills(dto.getSkillsId()));
     }
 
     @GetMapping("/test")

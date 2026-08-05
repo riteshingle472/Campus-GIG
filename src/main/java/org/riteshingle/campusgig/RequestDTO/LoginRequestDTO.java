@@ -1,4 +1,4 @@
-package org.riteshingle.campusgig.Repository;
+package org.riteshingle.campusgig.RequestDTO;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;

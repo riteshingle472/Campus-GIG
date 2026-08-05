@@ -16,6 +16,8 @@ import org.riteshingle.campusgig.Enum.Roles;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Data
 @Entity
@@ -66,6 +68,9 @@ public class UserEntity {
     private AvailabilityStatus availabilityStatus;
 
     private LocalDate dob;
+
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<UserSkills> userSkills = new ArrayList<>();
 
     @CreationTimestamp
     @Column(nullable = false,updatable = false)

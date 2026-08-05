@@ -6,8 +6,12 @@ import org.riteshingle.campusgig.Enum.AvailabilityStatus;
 import org.riteshingle.campusgig.Enum.Roles;
 import org.riteshingle.campusgig.JwtUtils.JwtUtils;
 import org.riteshingle.campusgig.Model.RefreshToken;
+import org.riteshingle.campusgig.Model.Skills;
 import org.riteshingle.campusgig.Model.UserEntity;
-import org.riteshingle.campusgig.Repository.LoginRequestDTO;
+import org.riteshingle.campusgig.Model.UserSkills;
+import org.riteshingle.campusgig.Repository.SkillsRepository;
+import org.riteshingle.campusgig.Repository.UserSkillsRepository;
+import org.riteshingle.campusgig.RequestDTO.LoginRequestDTO;
 import org.riteshingle.campusgig.Repository.RefreshTokenRepository;
 import org.riteshingle.campusgig.Repository.UserEntityRepository;
 import org.riteshingle.campusgig.RequestDTO.CompleteProfileRequestDTO;
@@ -20,13 +24,14 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.RequestMapping;
 
 import java.security.SecureRandom;
 import java.time.Duration;
 import java.util.Date;
+import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 
 @Service
@@ -37,6 +42,8 @@ public class AuthService {
     private final RefreshTokenRepository refreshTokenRepository;
     private final JwtUtils jwtUtils;
     private final PasswordEncoder passwordEncoder;
+    private final SkillsRepository skillsRepository;
+    private final UserSkillsRepository userSkillsRepository;
 
     private final SecureRandom random = new SecureRandom();
 
@@ -255,6 +262,26 @@ public class AuthService {
         userEntityRepository.save(user);
 
         return editResponseDTO(user);
+    }
+
+    @Transactional
+    public String addSkills(List<Long> skillIds){
+        UserEntity currentProfile = this.getCurrentProfile();
+        List<Long> userExistingSkills = userSkillsRepository.findSkillIdsByUserId(currentProfile.getId());
+        List<Long> newSkills = skillIds.stream().distinct().filter(id -> !userExistingSkills.contains(id)).toList();
+        List<Skills> skills = skillsRepository.findAllById(newSkills);
+
+        if(newSkills.isEmpty()) return "Changes Saved!";
+
+        if (skills.size() != newSkills.size()) {
+            throw new RuntimeException("Invalid skill selected");
+        }
+
+        List<UserSkills> userSkills = skills.stream().map(skill -> new UserSkills(currentProfile, skill)).toList();
+        currentProfile.getUserSkills().addAll(userSkills);
+        userEntityRepository.save(currentProfile);
+
+        return "Changes Saved !";
     }
 
     private String generateSixDigitOTP(){
