@@ -6,7 +6,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 
 @Data
-public class CreateJobRequestDTO {
+public class JobRequestDTO {
     private String draftId;
     private String title;
     private String description;

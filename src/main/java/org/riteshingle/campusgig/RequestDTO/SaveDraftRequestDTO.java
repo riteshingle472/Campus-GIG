@@ -11,5 +11,5 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class SaveDraftRequestDTO {
     private String draftId;
-    private CreateJobRequestDTO dto;
+    private JobRequestDTO dto;
 }

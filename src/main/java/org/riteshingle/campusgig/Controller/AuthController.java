@@ -65,7 +65,7 @@ public class AuthController {
     }
 
 //    Edit Profile
-    @PatchMapping("/edit-profile")
+    @PutMapping("/edit-profile")
     public ResponseEntity<EditResponseDTO> editProfile(@RequestBody EditProfileRequestDTO dto){
         return ResponseEntity.ok(authService.editProfile(dto));
     }

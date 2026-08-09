@@ -32,7 +32,7 @@ public class Job {
 
     @Column(nullable = false)
     @NotBlank(message = "Job Title is required")
-    @Size(min = 3,max = 100, message = "Job Title must be between 3 to 100 character")
+    @Size(min = 3,max = 200, message = "Job Title must be between 3 to 100 character")
     private String  title;
 
     @Column(nullable = false)

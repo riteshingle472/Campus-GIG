@@ -1,7 +1,7 @@
 package org.riteshingle.campusgig.Controller;
 
 import lombok.RequiredArgsConstructor;
-import org.riteshingle.campusgig.RequestDTO.CreateJobRequestDTO;
+import org.riteshingle.campusgig.RequestDTO.JobRequestDTO;
 import org.riteshingle.campusgig.ResponseDTO.JobResponseDTO;
 import org.riteshingle.campusgig.Service.JobService;
 import org.springframework.data.domain.PageRequest;
@@ -11,6 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Optional;
 
 @RestController
 @RequiredArgsConstructor
@@ -21,7 +22,7 @@ public class JobController {
 //    For -> Client
 //    Create Job
     @PostMapping("/create-job")
-    public ResponseEntity<String> createJob(@RequestBody CreateJobRequestDTO dto){
+    public ResponseEntity<String> createJob(@RequestBody JobRequestDTO dto){
         return ResponseEntity.ok(jobService.publishJob(dto));
     }
 
@@ -46,14 +47,14 @@ public class JobController {
 //    For -> client
 //    Draft Job
     @PostMapping("/draft-job")
-    public ResponseEntity<String> draftJob(@RequestBody CreateJobRequestDTO dto){
+    public ResponseEntity<String> draftJob(@RequestBody JobRequestDTO dto){
         return ResponseEntity.ok(jobService.draftJob(dto));
     }
 
 //    For -> client
 //    Get Draft Job
-    @GetMapping("/get-draft-job/{draftId}")
-    public ResponseEntity<CreateJobRequestDTO> getDraft(@PathVariable String draftId){
+    @GetMapping("/draft-job/{draftId}")
+    public ResponseEntity<JobRequestDTO> getDraft(@PathVariable String draftId){
         return ResponseEntity.ok(jobService.getDraft(draftId));
     }
 
@@ -72,5 +73,26 @@ public class JobController {
     public ResponseEntity<?> removeDraft(@PathVariable String draftId){
         jobService.removeDraft(draftId);
         return ResponseEntity.noContent().build();
+    }
+
+//    For -> Client
+//    Get all draft Job
+    @GetMapping("/draft-jobs")
+    public ResponseEntity<List<JobRequestDTO>> getAllDraftJob(){
+        return ResponseEntity.of(Optional.ofNullable(jobService.getAllDraft()));
+    }
+
+//    For -> Client
+//    Edit published job
+    @PutMapping("/edit-job/{id}")
+    public ResponseEntity<String> editJob(@PathVariable Long id, @RequestBody JobRequestDTO dto){
+        return ResponseEntity.ok(jobService.editJob(dto,id));
+    }
+
+//    For -> Client
+//    Edit published job
+    @PutMapping("/update-draft-job")
+    public ResponseEntity<String> updateJob(@RequestBody JobRequestDTO dto){
+        return ResponseEntity.ok(jobService.updateDraftJob(dto));
     }
 }
