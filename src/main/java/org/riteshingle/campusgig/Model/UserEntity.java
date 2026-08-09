@@ -54,7 +54,6 @@ public class UserEntity {
     private String department;
     private String profileImage;
     private String shortBio;
-
     private Integer semester;
 
     @Column(nullable = false)

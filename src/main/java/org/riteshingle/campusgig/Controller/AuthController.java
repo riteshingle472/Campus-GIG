@@ -16,51 +16,61 @@ import java.util.Map;
 public class AuthController {
     private final AuthService authService;
 
+//    User register
     @PostMapping("/register-user")
     public ResponseEntity<String> registerUser(@RequestBody RegisterUserRequestDTO dto) {
         return ResponseEntity.ok(authService.registerUser(dto));
     }
 
+//    Login
     @PostMapping("/login")
     public ResponseEntity<Map<String, String>> login(@RequestBody LoginRequestDTO dto, HttpServletResponse response) {
         return ResponseEntity.ok(authService.login(dto, response));
     }
 
+//    Email varification OTP API
     @GetMapping("/email-verification-otp")
     public ResponseEntity<String> verifyEmailOTP() {
         return ResponseEntity.ok(authService.verifyEmailOTP());
     }
 
+//    Email Varification API
     @PostMapping("/verify-email")
     public ResponseEntity<String> verifyEmail(@RequestParam String otp) {
         return ResponseEntity.ok(authService.verifyEmail(otp));
     }
 
+//    Forgot Password OTP API
     @GetMapping("/forgot-password-otp")
     public ResponseEntity<String> forgotPasswordOTP() {
         return ResponseEntity.ok(authService.forgotPasswordOTP());
     }
 
+//    Forgot/Change Password API
     @PostMapping("/forgot-password")
     public ResponseEntity<String> forgotPassword(@RequestParam String otp, @RequestParam String newPassword) {
         return ResponseEntity.ok(authService.forgotPassword(otp, newPassword));
     }
 
+//    Complete Profile
     @PatchMapping("/complete-profile")
     public ResponseEntity<String> completeProfile(@RequestBody CompleteProfileRequestDTO dto) {
         return ResponseEntity.ok(authService.completeProfile(dto));
     }
 
+//    Refresh Token
     @GetMapping("/refresh-token")
     public ResponseEntity<Map<String,Object>> refreshToken(@CookieValue(name = "RefreshToken") String refreshToken,HttpServletResponse response){
         return ResponseEntity.ok(authService.refreshToken(refreshToken,response));
     }
 
+//    Edit Profile
     @PatchMapping("/edit-profile")
     public ResponseEntity<EditResponseDTO> editProfile(@RequestBody EditProfileRequestDTO dto){
         return ResponseEntity.ok(authService.editProfile(dto));
     }
 
+//    User Skills
     @PostMapping("/add-user-skills")
     public ResponseEntity<String> addSkills(@RequestBody AddUserSkillsRequestDTO dto){
         return ResponseEntity.ok(authService.addSkills(dto.getSkillsId()));
