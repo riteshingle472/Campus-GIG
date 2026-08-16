@@ -12,7 +12,7 @@ public class JobRequestDTO {
     private String description;
     private String experienceLevel;
     private String workMode;
-    private String category;
+    private String jobCategory;
     private LocalDate deadline;
     private BigDecimal budget;
     private String jobStatus;

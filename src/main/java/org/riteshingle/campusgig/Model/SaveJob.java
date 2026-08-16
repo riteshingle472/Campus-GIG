@@ -1,35 +1,37 @@
 package org.riteshingle.campusgig.Model;
 
 import jakarta.persistence.*;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 
 @Data
 @Entity
 @Builder
-@NoArgsConstructor
 @AllArgsConstructor
-@Table(name = "tbl_job_category")
-public class JobCategory {
+@NoArgsConstructor
+@Table(name = "tbl_save_job")
+public class SaveJob {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
-    @NotBlank(message = "Category is required..")
-    @Size(min = 2,max = 25,message = "Category must be between 2 to 25 character")
-    private String category;
+    @ManyToOne
+    @JoinColumn(name = "gig_id")
+    private GIG gig;
 
-    @Column(nullable = false,updatable = false)
+    @ManyToOne
+    @JoinColumn(name = "job_id")
+    private Job job;
+
     @CreationTimestamp
+    @Column(nullable = false,updatable = false)
     private LocalDateTime createdAt;
 
     @UpdateTimestamp

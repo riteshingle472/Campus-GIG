@@ -12,6 +12,7 @@ import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.riteshingle.campusgig.Enum.ExperienceLevel;
+import org.riteshingle.campusgig.Enum.JobCategory;
 import org.riteshingle.campusgig.Enum.JobStatus;
 import org.riteshingle.campusgig.Enum.WorkMode;
 
@@ -60,8 +61,8 @@ public class Job {
     @Enumerated(EnumType.STRING)
     private JobStatus jobStatus;  // OPEN , CLOSE , (DELETED -> Client)
 
-    @ManyToOne
-    @JoinColumn(name = "category_id")
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
     private JobCategory category;
 
     @ManyToOne

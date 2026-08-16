@@ -55,21 +55,21 @@ public class UserEntity {
     private String profileImage;
     private String shortBio;
     private Integer semester;
+    private LocalDate dob;
+
 
     @Column(nullable = false)
     @NotNull(message = "Is verified can not be null")
     private Boolean isVerified;
 
+    @Column(nullable = false)
+    private Boolean isProfileComplete;
+
     @Enumerated(EnumType.STRING)
     private Roles roles;
 
-    @Enumerated(EnumType.STRING)
-    private AvailabilityStatus availabilityStatus;
-
-    private LocalDate dob;
-
-    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<UserSkills> userSkills = new ArrayList<>();
+    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    private GIG gig;
 
     @CreationTimestamp
     @Column(nullable = false,updatable = false)
@@ -81,6 +81,7 @@ public class UserEntity {
 
     @PrePersist
     public void prePersist(){
+        this.isProfileComplete = false;
         this.isVerified = false;
     }
 }

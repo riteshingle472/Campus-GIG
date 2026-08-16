@@ -2,21 +2,14 @@ package org.riteshingle.campusgig.Service;
 
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import org.jspecify.annotations.NonNull;
 import org.riteshingle.campusgig.Enum.AvailabilityStatus;
 import org.riteshingle.campusgig.Enum.Roles;
 import org.riteshingle.campusgig.JwtUtils.JwtUtils;
-import org.riteshingle.campusgig.Model.RefreshToken;
-import org.riteshingle.campusgig.Model.Skills;
-import org.riteshingle.campusgig.Model.UserEntity;
-import org.riteshingle.campusgig.Model.UserSkills;
-import org.riteshingle.campusgig.Repository.SkillsRepository;
-import org.riteshingle.campusgig.Repository.UserSkillsRepository;
-import org.riteshingle.campusgig.RequestDTO.LoginRequestDTO;
+import org.riteshingle.campusgig.Model.*;
+import org.riteshingle.campusgig.RequestDTO.*;
 import org.riteshingle.campusgig.Repository.RefreshTokenRepository;
 import org.riteshingle.campusgig.Repository.UserEntityRepository;
-import org.riteshingle.campusgig.RequestDTO.CompleteProfileRequestDTO;
-import org.riteshingle.campusgig.RequestDTO.EditProfileRequestDTO;
-import org.riteshingle.campusgig.RequestDTO.RegisterUserRequestDTO;
 import org.riteshingle.campusgig.ResponseDTO.EditResponseDTO;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
@@ -24,13 +17,11 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.RequestMapping;
 
 import java.security.SecureRandom;
 import java.time.Duration;
 import java.util.Date;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -42,8 +33,6 @@ public class AuthService {
     private final RefreshTokenRepository refreshTokenRepository;
     private final JwtUtils jwtUtils;
     private final PasswordEncoder passwordEncoder;
-    private final SkillsRepository skillsRepository;
-    private final UserSkillsRepository userSkillsRepository;
 
     private final SecureRandom random = new SecureRandom();
 
@@ -82,7 +71,7 @@ public class AuthService {
 //        If user is present
         if (byUser.isPresent()) {
             refreshToken = byUser.get();
-            boolean tokenExpired = false;
+            boolean tokenExpired;
 
 //            Check is token expire or not
             try {
@@ -193,20 +182,15 @@ public class AuthService {
         }
 
 //        Set details in user profile
-        UserEntity currentProfile = getCurrentProfile();
+        UserEntity currentProfile = getUser(dto);
 
-        currentProfile.setCollege(dto.getCollege());
-        currentProfile.setProfileImage(dto.getProfileImage());
-        currentProfile.setDepartment(dto.getDepartment());
-        currentProfile.setSemester(dto.getSemester());
-        currentProfile.setAvailabilityStatus(availabilityStatus);
-        currentProfile.setPhoneNumber(dto.getPhoneNumber());
-        currentProfile.setShortBio(dto.getShortBio());
-        currentProfile.setDob(dto.getDob());
+        if(currentProfile.getIsProfileComplete()){
+            throw new RuntimeException("Profile is already completed..");
+        }
 
+        currentProfile.setIsProfileComplete(true);
 //        save profile in DB
         userEntityRepository.save(currentProfile);
-
         return "Profile Completed !";
     }
 
@@ -292,48 +276,16 @@ public class AuthService {
 
             try {
                 availabilityStatus = AvailabilityStatus.valueOf(dto.getAvailabilityStatus().trim().toUpperCase());
-                user.setAvailabilityStatus(availabilityStatus);
             }catch (Exception e){
                 throw new RuntimeException("Status not found");
             }
         }
 
         userEntityRepository.save(user);
-
         return editResponseDTO(user);
     }
 
-//    Add User Skills
-    @Transactional
-    public String addSkills(List<Long> skillIds){
-//        Get current profile
-        UserEntity currentProfile = this.getCurrentProfile();
-//        Get User existing skills
-        List<Long> userExistingSkills = userSkillsRepository.findSkillIdsByUserId(currentProfile.getId());
-//        Filter skills from existing skills
-        List<Long> newSkills = skillIds.stream().distinct().filter(id -> !userExistingSkills.contains(id)).toList();
-//        Find Skills by ID in List
-        List<Skills> skills = skillsRepository.findAllById(newSkills);
-
-//        If List is empty then do nothing
-        if(newSkills.isEmpty()) return "Changes Saved!";
-
-//        Skill list size and Distinct skill list size if both are different then throw Exception Invalid skill selection
-        if (skills.size() != newSkills.size()) {
-            throw new RuntimeException("Invalid skill selected");
-        }
-
-//        Setting skills in current logged-in user profile
-        List<UserSkills> userSkills = skills.stream().map(skill -> new UserSkills(currentProfile, skill)).toList();
-        currentProfile.getUserSkills().addAll(userSkills);
-//        save user in DB
-        userEntityRepository.save(currentProfile);
-
-        return "Changes Saved !";
-    }
-
 //    Helper methods
-
 //    6 Digit OTP
     private String generateSixDigitOTP(){
         int otp = 100000 + random.nextInt(900000);
@@ -351,9 +303,20 @@ public class AuthService {
                 .semester(user.getSemester())
                 .shortBio(user.getShortBio())
                 .phoneNumber(user.getPhoneNumber())
-                .AvailabilityStatus(user.getAvailabilityStatus().name())
                 .dob(user.getDob().toString())
                 .build();
     }
 
+    private UserEntity getUser(CompleteProfileRequestDTO dto) {
+        UserEntity currentProfile = getCurrentProfile();
+
+        currentProfile.setCollege(dto.getCollege());
+        currentProfile.setProfileImage(dto.getProfileImage());
+        currentProfile.setDepartment(dto.getDepartment());
+        currentProfile.setSemester(dto.getSemester());
+        currentProfile.setPhoneNumber(dto.getPhoneNumber());
+        currentProfile.setShortBio(dto.getShortBio());
+        currentProfile.setDob(dto.getDob());
+        return currentProfile;
+    }
 }

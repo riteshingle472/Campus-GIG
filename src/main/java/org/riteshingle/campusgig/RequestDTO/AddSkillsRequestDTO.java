@@ -5,6 +5,6 @@ import lombok.Data;
 import java.util.List;
 
 @Data
-public class AddUserSkillsRequestDTO {
+public class AddSkillsRequestDTO {
     private List<Long> skillsId;
 }

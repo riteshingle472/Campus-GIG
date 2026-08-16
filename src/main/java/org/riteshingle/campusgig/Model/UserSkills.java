@@ -12,9 +12,7 @@ import lombok.NoArgsConstructor;
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
-@Table(name = "tbl_user_skills",uniqueConstraints = {
-        @UniqueConstraint(columnNames = {"user_id", "skill_id"})
-})
+@Table(name = "tbl_user_skills",uniqueConstraints = {@UniqueConstraint(columnNames = {"gig_id", "skill_id"})})
 public class UserSkills {
 
     @Id
@@ -22,15 +20,15 @@ public class UserSkills {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id")
-    private UserEntity user;
+    @JoinColumn(name = "gig_id")
+    private GIG gig;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "skill_id")
     private Skills skill;
 
-    public UserSkills(UserEntity currentProfile, Skills skill) {
+    public UserSkills(GIG gig, Skills skill) {
         this.skill = skill;
-        this.user = currentProfile;
+        this.gig= gig;
     }
 }

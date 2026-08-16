@@ -10,7 +10,9 @@ import java.util.List;
 
 @Repository
 public interface UserSkillsRepository extends JpaRepository<UserSkills ,Long> {
-    @Query("SELECT us.skill.id FROM UserSkills us WHERE us.user.id = :userId")
-    List<Long> findSkillIdsByUserId(@Param("userId") Long userId);
+    @Query("SELECT us.skill.id FROM UserSkills us WHERE us.gig.id = :gigId")
+    List<Long> findSkillIdsByGigId(@Param("gigId") Long gigId);
 
+    @Query("SELECT us.skill.skill FROM UserSkills us WHERE us.gig.id = :gigId")
+    List<String> findSkillByGigId(@Param("gigId") Long gigId);
 }
