@@ -7,7 +7,6 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 
@@ -16,8 +15,15 @@ import java.time.LocalDateTime;
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
-@Table(name = "tbl_save_job")
-public class SaveJob {
+@Table(name = "tbl_bookmark_job",
+        uniqueConstraints = {
+                @UniqueConstraint(
+                        name = "uk_gig_job",
+                        columnNames = {"gig_id", "job_id"}
+                )
+        }
+)
+public class Bookmark {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;

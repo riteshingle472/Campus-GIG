@@ -333,7 +333,10 @@ public class JobService {
         }
 
         jobApplicationRepository.saveAll(applicantsList);
+
         jobApplication.setJobApplicationStatus(JobApplicationStatus.ACCEPTED);
+        job.setJobStatus(JobStatus.CLOSED);
+        jobRepository.save(job);
         jobApplicationRepository.save(jobApplication);
     }
 
