@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.riteshingle.campusgig.Enum.*;
 import org.riteshingle.campusgig.Model.*;
+import org.riteshingle.campusgig.Repository.ContractRepository;
 import org.riteshingle.campusgig.Repository.JobApplicationRepository;
 import org.riteshingle.campusgig.Repository.JobRepository;
 import org.riteshingle.campusgig.Repository.UserSkillsRepository;
@@ -33,6 +34,7 @@ public class JobService {
     private final ObjectMapper objectMapper;
     private final UserSkillsRepository userSkillsRepository;
     private final JobApplicationRepository jobApplicationRepository;
+    private final ContractRepository contractRepository;
     private final RedisTemplate<String, Object> redisTemplate;
 
     //    For -> client
@@ -333,6 +335,16 @@ public class JobService {
         }
 
         jobApplicationRepository.saveAll(applicantsList);
+
+        Contract contract = Contract.builder().contractStatus(ContractStatus.PENDING)
+                .jobApplication(jobApplication)
+                .expectedDeliveryDate(jobApplication.getDeliveryDate())
+                .agreementAmount(jobApplication.getBidAmount())
+                .client(job.getUser())
+                .gig(jobApplication.getGig())
+                .build();
+
+        contractRepository.save(contract);
 
         jobApplication.setJobApplicationStatus(JobApplicationStatus.ACCEPTED);
         job.setJobStatus(JobStatus.CLOSED);
