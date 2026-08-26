@@ -9,6 +9,7 @@ import org.springframework.context.annotation.EnableMBeanExport;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -23,6 +24,7 @@ import java.util.List;
 
 @Configuration
 @RequiredArgsConstructor
+@EnableWebSecurity
 public class Config {
     private final JwtRequestFilter jwtRequestFilter;
     private final RateLimitFilter rateLimitFilter;
@@ -32,6 +34,7 @@ public class Config {
         return http.csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(req -> req
                         .requestMatchers("/auth/test").authenticated()
+                        .requestMatchers("/ws/**").permitAll()
                         .requestMatchers("/auth/**").permitAll()
                         .anyRequest().authenticated()
                 )

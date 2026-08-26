@@ -4,10 +4,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.riteshingle.campusgig.Enum.*;
 import org.riteshingle.campusgig.Model.*;
-import org.riteshingle.campusgig.Repository.ContractRepository;
-import org.riteshingle.campusgig.Repository.JobApplicationRepository;
-import org.riteshingle.campusgig.Repository.JobRepository;
-import org.riteshingle.campusgig.Repository.UserSkillsRepository;
+import org.riteshingle.campusgig.Repository.*;
 import org.riteshingle.campusgig.RequestDTO.JobRequestDTO;
 import org.riteshingle.campusgig.ResponseDTO.GigResponseDTO;
 import org.riteshingle.campusgig.ResponseDTO.JobApplicantResponseDTO;
@@ -35,6 +32,7 @@ public class JobService {
     private final UserSkillsRepository userSkillsRepository;
     private final JobApplicationRepository jobApplicationRepository;
     private final ContractRepository contractRepository;
+    private final ConversationRepository conversationRepository;
     private final RedisTemplate<String, Object> redisTemplate;
 
     //    For -> client
@@ -336,13 +334,21 @@ public class JobService {
 
         jobApplicationRepository.saveAll(applicantsList);
 
-        Contract contract = Contract.builder().contractStatus(ContractStatus.PENDING)
+        Contract contract = Contract.builder()
+                .contractStatus(ContractStatus.PENDING)
                 .jobApplication(jobApplication)
+                .job(job)
                 .expectedDeliveryDate(jobApplication.getDeliveryDate())
                 .agreementAmount(jobApplication.getBidAmount())
                 .client(job.getUser())
                 .gig(jobApplication.getGig())
                 .build();
+
+        Conversation conversation = Conversation.builder()
+                        .contract(contract)
+                                .build();
+
+        conversationRepository.save(conversation);
 
         contractRepository.save(contract);
 

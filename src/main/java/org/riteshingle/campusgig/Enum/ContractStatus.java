@@ -4,6 +4,6 @@ public enum ContractStatus {
     WITHDRAWN,
     CANCEL,
     CLOSED,
-    ACTIVATED,
+    ACTIVE,
     PENDING
 }
