@@ -14,7 +14,6 @@ import org.hibernate.annotations.UpdateTimestamp;
 import org.riteshingle.campusgig.Enum.ExperienceLevel;
 import org.riteshingle.campusgig.Enum.JobCategory;
 import org.riteshingle.campusgig.Enum.JobStatus;
-import org.riteshingle.campusgig.Enum.WorkMode;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -52,10 +51,6 @@ public class Job {
     @Column(nullable = false)
     @Enumerated(EnumType.STRING)
     private ExperienceLevel experienceLevel;
-
-    @Column(nullable = false)
-    @Enumerated(EnumType.STRING)
-    private WorkMode workMode;
 
     @Column(nullable = false)
     @Enumerated(EnumType.STRING)

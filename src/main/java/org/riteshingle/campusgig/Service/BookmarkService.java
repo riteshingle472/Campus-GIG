@@ -22,10 +22,8 @@ public class BookmarkService {
     private final SaveJobRepository saveJobRepository;
     private final AuthService authService;
     private final JobRepository jobRepository;
-    private final GigRepository gigRepository;
 
-
-    public void saveJob(Long jobId){
+    public void bookmarkJob(Long jobId){
         UserEntity currentProfile = authService.getCurrentProfile();
 
         if(currentProfile.getGig() == null){
@@ -37,9 +35,6 @@ public class BookmarkService {
         }
 
         GIG gig = currentProfile.getGig();
-
-        if(gig.getAvailabilityStatus() != AvailabilityStatus.AVAILABLE)
-            throw new RuntimeException("GIG is currently unavailable");
 
         Job job = jobRepository.findById(jobId).orElseThrow(() -> new RuntimeException("Job not found with job id : "+jobId));
 
@@ -55,7 +50,7 @@ public class BookmarkService {
         saveJobRepository.save(build);
     }
 
-    public void removeJobFromSave(Long jobId){
+    public void removeBookmarkJob(Long jobId){
         UserEntity currentProfile = authService.getCurrentProfile();
 
         if(currentProfile.getGig() == null)
@@ -70,7 +65,7 @@ public class BookmarkService {
         saveJobRepository.delete(bookmark);
     }
 
-    public List<BookmarkResponseDTO> getSaveJob() {
+    public List<BookmarkResponseDTO> bookmarkJobs() {
         UserEntity currentProfile = authService.getCurrentProfile();
         GIG gig = currentProfile.getGig();
 
@@ -88,7 +83,6 @@ public class BookmarkService {
     private BookmarkResponseDTO responseDTO(Bookmark bookmark){
         Job job = bookmark.getJob();
         return BookmarkResponseDTO.builder()
-                .workMode(job.getWorkMode())
                 .jobStatus(job.getJobStatus())
                 .deadline(job.getDeadline())
                 .jobTitle(job.getTitle())

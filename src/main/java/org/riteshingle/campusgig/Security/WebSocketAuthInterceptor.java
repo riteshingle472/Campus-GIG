@@ -1,6 +1,7 @@
 package org.riteshingle.campusgig.Security;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.riteshingle.campusgig.JwtUtils.JwtUtils;
 import org.riteshingle.campusgig.Service.CustomUserDetailsService;
 import org.springframework.messaging.Message;
@@ -15,6 +16,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class WebSocketAuthInterceptor implements ChannelInterceptor {
@@ -35,7 +37,7 @@ public class WebSocketAuthInterceptor implements ChannelInterceptor {
             String token = authorization.substring(7);
             String username = jwtUtils.extractEmail(token);
 
-            System.out.println("WS USERNAME = " + username);
+            log.info("WS USERNAME = {}", username);
 
             if (username == null) throw new IllegalArgumentException("Invalid JWT token");
 
@@ -47,16 +49,11 @@ public class WebSocketAuthInterceptor implements ChannelInterceptor {
             Authentication authentication = new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
             accessor.setUser(authentication);
 
-            System.out.println("WS AUTHENTICATION = " + accessor.getUser());
+            log.info("WS AUTHENTICATION = {}", accessor.getUser());
+            log.info("WS PRINCIPAL = {}", accessor.getUser());
 
-            System.out.println("WS PRINCIPAL = " + accessor.getUser());
-
-            return MessageBuilder.createMessage(
-                    message.getPayload(),
-                    accessor.getMessageHeaders()
-            );
+            return MessageBuilder.createMessage(message.getPayload(),accessor.getMessageHeaders());
         }
-
         return message;
     }
 }

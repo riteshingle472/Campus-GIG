@@ -1,10 +1,7 @@
 package org.riteshingle.campusgig.Model;
 
 import jakarta.persistence.*;
-import jakarta.validation.constraints.Email;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -49,27 +46,36 @@ public class UserEntity {
     @Column(nullable = false)
     private String password;
 
-    private String phoneNumber;
-    private String college;
-    private String department;
-    private String profileImage;
-    private String shortBio;
-    private Integer semester;
-    private LocalDate dob;
-
-
     @Column(nullable = false)
     @NotNull(message = "Is verified can not be null")
     private Boolean isVerified;
-
-    @Column(nullable = false)
-    private Boolean isProfileComplete;
 
     @Enumerated(EnumType.STRING)
     private Roles roles;
 
     @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     private GIG gig;
+
+    @NotBlank(message = "Phone number is required")
+    @Column(nullable = false)
+    @Pattern(regexp = "^[6-9]\\d{9}$",message = "Enter a valid 10-digit Indian phone number")
+    private String phoneNumber;
+
+    @Size(max = 500, message = "Profile image URL must not exceed 500 characters")
+    private String profileImage;
+
+    @NotNull(message = "Date of birth is required")
+    @Column(nullable = false)
+    @Past(message = "Date of birth must be in the past")
+    private LocalDate dob;
+
+    @Column(nullable = false)
+    @NotNull(message = "Average Rating must required..")
+    private Long totalRatingSum = 0L;
+
+    @Column(nullable = false)
+    @NotNull(message = "Total Rating must required..")
+    private Long totalRatings = 0L;
 
     @CreationTimestamp
     @Column(nullable = false,updatable = false)
@@ -81,7 +87,12 @@ public class UserEntity {
 
     @PrePersist
     public void prePersist(){
-        this.isProfileComplete = false;
         this.isVerified = false;
+    }
+
+    @Transient
+    public Double getAverageRating() {
+        if (totalRatings == null || totalRatings == 0) return 0.0;
+        return Math.round(((double) totalRatingSum / totalRatings) * 10.0) / 10.0;
     }
 }

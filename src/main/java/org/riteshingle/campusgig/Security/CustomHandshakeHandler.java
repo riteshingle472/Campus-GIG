@@ -16,11 +16,9 @@ public class CustomHandshakeHandler extends DefaultHandshakeHandler {
                                       Map<String, Object> attributes) {
 
         String username = (String) attributes.get("username");
-        System.out.println("HANDSHAKE determineUser username = " + username);
+        logger.info("HANDSHAKE determineUser username = " + username);
 
-        if (username == null)
-            return null;
-
-        return () -> username;
+        if (username == null) return null;
+        else return () -> username;
     }
 }

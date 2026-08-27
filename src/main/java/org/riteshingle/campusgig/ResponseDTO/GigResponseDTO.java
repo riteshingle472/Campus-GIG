@@ -18,9 +18,11 @@ public class GigResponseDTO {
     private String gigLastName;
     private String gigEmail;
     private String gigPhoneNumber;
-    private String title;
+    private String college;
+    private String department;
+    private Integer semester;
     private String description;
-    private JobCategory jobCategory;
+    private JobCategory title;
     private AvailabilityStatus availabilityStatus;
     private List<String> gigSkills;
 }

@@ -18,20 +18,20 @@ public class BookmarkController {
     @PreAuthorize("hasRole('GIG')")
     @PostMapping("/save")
     public ResponseEntity<?> saveJob(@RequestParam Long jobId){
-        bookmarkService.saveJob(jobId);
+        bookmarkService.bookmarkJob(jobId);
         return ResponseEntity.noContent().build();
     }
 
     @PreAuthorize("hasRole('GIG')")
     @DeleteMapping("/remove")
     public ResponseEntity<?> deleteJob(@RequestParam Long jobId){
-        bookmarkService.removeJobFromSave(jobId);
+        bookmarkService.removeBookmarkJob(jobId);
         return ResponseEntity.noContent().build();
     }
 
     @PreAuthorize("hasRole('GIG')")
     @GetMapping("/saves")
     public ResponseEntity<List<BookmarkResponseDTO>> getSaveJobs(){
-        return ResponseEntity.ok(bookmarkService.getSaveJob());
+        return ResponseEntity.ok(bookmarkService.bookmarkJobs());
     }
 }

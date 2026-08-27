@@ -9,9 +9,7 @@ import org.riteshingle.campusgig.RequestDTO.JobRequestDTO;
 import org.riteshingle.campusgig.ResponseDTO.GigResponseDTO;
 import org.riteshingle.campusgig.ResponseDTO.JobApplicantResponseDTO;
 import org.riteshingle.campusgig.ResponseDTO.JobResponseDTO;
-import org.riteshingle.campusgig.Specification.JobSpecification;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.redis.core.Cursor;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.ScanOptions;
@@ -29,6 +27,7 @@ public class JobService {
     private final JobRepository jobRepository;
     private final AuthService authService;
     private final ObjectMapper objectMapper;
+    private final ContractService contractService;
     private final UserSkillsRepository userSkillsRepository;
     private final JobApplicationRepository jobApplicationRepository;
     private final ContractRepository contractRepository;
@@ -50,16 +49,18 @@ public class JobService {
         Job job = createJobEntity(dto);
 
 //        Check Experience , Work mode and Job status is valid or not ?
-        ExperienceLevel experienceLevel = ExperienceLevel.valueOf(dto.getExperienceLevel().trim().toUpperCase());
-        JobStatus status = JobStatus.valueOf(dto.getJobStatus().trim().toUpperCase());
-        WorkMode workMode = WorkMode.valueOf(dto.getWorkMode().trim().toUpperCase());
-        JobCategory category = JobCategory.valueOf(dto.getJobCategory().trim().toUpperCase());
+       try{
+           ExperienceLevel experienceLevel = ExperienceLevel.valueOf(dto.getExperienceLevel().trim().toUpperCase());
+           JobStatus status = JobStatus.valueOf(dto.getJobStatus().trim().toUpperCase());
+           JobCategory category = JobCategory.valueOf(dto.getJobCategory().trim().toUpperCase());
 
-        job.setExperienceLevel(experienceLevel);
-        job.setWorkMode(workMode);
-        job.setJobStatus(status);
-        job.setCategory(category);
-        job.setUser(client);
+           job.setExperienceLevel(experienceLevel);
+           job.setJobStatus(status);
+           job.setCategory(category);
+           job.setUser(client);
+       }catch (Exception e){
+           e.printStackTrace();
+       }
 
 //        save in DB
         jobRepository.save(job);
@@ -240,15 +241,24 @@ public class JobService {
 
         if (dto.getBudget() != null) job.setBudget(dto.getBudget());
 
-        ExperienceLevel experienceLevel = ExperienceLevel.valueOf(dto.getExperienceLevel().trim().toUpperCase());
-        WorkMode workMode = WorkMode.valueOf(dto.getWorkMode().trim().toUpperCase());
-        JobStatus jobStatus = JobStatus.valueOf(dto.getJobStatus().trim().toUpperCase());
-        JobCategory jobCategory = JobCategory.valueOf(dto.getJobCategory().trim().toUpperCase());
 
-        if (dto.getWorkMode() != null) job.setWorkMode(workMode);
-        if (dto.getJobStatus() != null) job.setJobStatus(jobStatus);
-        if (dto.getJobCategory() != null) job.setCategory(jobCategory);
-        if (dto.getExperienceLevel() != null) job.setExperienceLevel(experienceLevel);
+        ExperienceLevel experienceLevel;
+        if(dto.getExperienceLevel() != null){
+            experienceLevel = ExperienceLevel.valueOf(dto.getExperienceLevel().trim().toUpperCase());
+            job.setExperienceLevel(experienceLevel);
+        }
+
+        JobStatus jobStatus;
+        if(dto.getJobStatus() != null){
+            jobStatus = JobStatus.valueOf(dto.getJobStatus().trim().toUpperCase());
+            job.setJobStatus(jobStatus);
+        }
+
+        JobCategory jobCategory;
+        if(dto.getJobCategory() != null){
+            jobCategory = JobCategory.valueOf(dto.getJobCategory().trim().toUpperCase());
+            job.setCategory(jobCategory);
+        }
 
         jobRepository.save(job);
         return "Job edited !";
@@ -318,8 +328,10 @@ public class JobService {
             throw new RuntimeException("This application does not belong to this job..");
         }
 
-        if(jobApplication.getJobApplicationStatus().equals(JobApplicationStatus.ACCEPTED)){
-            throw new RuntimeException("Application is already  accepted ..");
+        if(jobApplication.getJobApplicationStatus().equals(JobApplicationStatus.ACCEPTED) ||
+        jobApplication.getJobApplicationStatus().equals(JobApplicationStatus.REJECTED) ||
+        jobApplication.getJobApplicationStatus().equals(JobApplicationStatus.WITHDRAWN)){
+            throw new RuntimeException("Application is already "+jobApplication.getJobApplicationStatus()+"...");
         }
 
         List<JobApplication> applicantsList = jobApplicationRepository.findByJob(job);
@@ -334,28 +346,17 @@ public class JobService {
 
         jobApplicationRepository.saveAll(applicantsList);
 
-        Contract contract = Contract.builder()
-                .contractStatus(ContractStatus.PENDING)
-                .jobApplication(jobApplication)
-                .job(job)
-                .expectedDeliveryDate(jobApplication.getDeliveryDate())
-                .agreementAmount(jobApplication.getBidAmount())
-                .client(job.getUser())
-                .gig(jobApplication.getGig())
-                .build();
-
-        Conversation conversation = Conversation.builder()
-                        .contract(contract)
-                                .build();
-
-        conversationRepository.save(conversation);
-
-        contractRepository.save(contract);
-
-        jobApplication.setJobApplicationStatus(JobApplicationStatus.ACCEPTED);
         job.setJobStatus(JobStatus.CLOSED);
         jobRepository.save(job);
+
+        jobApplication.setJobApplicationStatus(JobApplicationStatus.ACCEPTED);
         jobApplicationRepository.save(jobApplication);
+
+        Contract contract = contractService.createContract(job,jobApplication);
+        contractRepository.save(contract);
+
+        Conversation conversation = Conversation.builder().contract(contract).build();
+        conversationRepository.save(conversation);
     }
 
     public void rejectJobProposal(Long applicationId){
@@ -395,12 +396,6 @@ public class JobService {
                 errors.add("Invalid experience level: " + dto.getJobCategory() +
                         ". Allowed: " + Arrays.toString(ExperienceLevel.values()));
 
-//        Check work mode
-        if (dto.getWorkMode() != null)
-            if (isValidEnum(WorkMode.class, dto.getWorkMode()))
-                errors.add("Invalid work mode: " + dto.getWorkMode() +
-                        ". Allowed: " + Arrays.toString(WorkMode.values()));
-
 //        Check Job Status
         if (dto.getJobStatus() != null)
             if (isValidEnum(JobStatus.class, dto.getJobStatus()))
@@ -425,7 +420,6 @@ public class JobService {
                 .publishAt(job.getPublishAt())
                 .title(job.getTitle())
                 .description(job.getDescription())
-                .workMode(job.getWorkMode().name())
                 .category(job.getCategory().name())
                 .deadline(job.getDeadline())
                 .experience(job.getExperienceLevel().name())
@@ -478,9 +472,11 @@ public class JobService {
                 .gigLastName(user.getLastName())
                 .gigEmail(user.getEmail())
                 .gigPhoneNumber(user.getPhoneNumber())
-                .title(gig.getTitle())
                 .description(gig.getDescription())
-                .jobCategory(gig.getJobCategory())
+                .title(gig.getTitle())
+                .college(gig.getCollege())
+                .department(gig.getDepartment())
+                .semester(gig.getSemester())
                 .availabilityStatus(gig.getAvailabilityStatus())
                 .build();
 

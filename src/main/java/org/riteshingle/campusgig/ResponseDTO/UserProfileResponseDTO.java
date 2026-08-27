@@ -1,20 +1,22 @@
 package org.riteshingle.campusgig.ResponseDTO;
 
-import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
-import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Data
 @Builder
-@AllArgsConstructor
-@NoArgsConstructor
-public class EditResponseDTO {
+public class UserProfileResponseDTO {
+    private Long id;
     private String firstName;
     private String lastName;
     private String email;
     private String phoneNumber;
+    private Double averageRating;
+    private Long totalRatings;
     private LocalDate dob;
+    private String profileImage;
+    private LocalDateTime createdAt;
 }

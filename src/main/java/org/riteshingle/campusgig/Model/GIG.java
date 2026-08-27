@@ -1,13 +1,14 @@
 package org.riteshingle.campusgig.Model;
 
 import jakarta.persistence.*;
-import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.riteshingle.campusgig.Enum.AvailabilityStatus;
 import org.riteshingle.campusgig.Enum.JobCategory;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -38,17 +39,25 @@ public class GIG {
     //    Job Category which types of skill GIG have
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private JobCategory jobCategory;
-
-    //    Job Title
-    @Column(nullable = false)
-    @NotBlank(message = "Title must required..")
-    private String title;
+    private JobCategory title;
 
     //    GIG description
     @Column(nullable = false)
     @NotBlank(message = "Title must required..")
     private String description;
+
+    @NotBlank(message = "College is required")
+    @Size(min = 2,max = 100,message = "College name must be between 2 and 100 characters")
+    private String college;
+
+    @NotBlank(message = "Department is required")
+    @Size(min = 2,max = 100,message = "Department must be between 2 and 100 characters")
+    private String department;
+
+    @NotNull(message = "Semester is required")
+    @Min(value = 1, message = "Semester must be at least 1")
+    @Max(value = 8, message = "Semester must not exceed 8")
+    private Integer semester;
 
     //    GIG skills list
     @ToString.Exclude

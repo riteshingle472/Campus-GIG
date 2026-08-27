@@ -7,7 +7,6 @@ import lombok.NoArgsConstructor;
 import org.riteshingle.campusgig.Enum.ExperienceLevel;
 import org.riteshingle.campusgig.Enum.JobCategory;
 import org.riteshingle.campusgig.Enum.JobStatus;
-import org.riteshingle.campusgig.Enum.WorkMode;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -21,7 +20,6 @@ public class BookmarkResponseDTO {
     private LocalDate deadline;
     private BigDecimal budget;
     private JobCategory category;
-    private WorkMode workMode;
     private JobStatus jobStatus;
     private ExperienceLevel experienceLevel;
 }

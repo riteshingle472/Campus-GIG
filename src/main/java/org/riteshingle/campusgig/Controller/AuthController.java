@@ -4,6 +4,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.riteshingle.campusgig.RequestDTO.*;
 import org.riteshingle.campusgig.ResponseDTO.EditResponseDTO;
+import org.riteshingle.campusgig.ResponseDTO.UserProfileResponseDTO;
 import org.riteshingle.campusgig.Service.AuthService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -57,17 +58,15 @@ public class AuthController {
         return ResponseEntity.ok(authService.forgotPassword(otp, newPassword));
     }
 
-    //    Complete Profile
-    @PreAuthorize("/hasRole('USER' , 'GIG')")
-    @PostMapping("/complete-profile")
-    public ResponseEntity<String> completeProfile(@RequestBody CompleteProfileRequestDTO dto) {
-        return ResponseEntity.ok(authService.completeProfile(dto));
-    }
-
     //    Refresh Token
     @GetMapping("/refresh-token")
     public ResponseEntity<Map<String, Object>> refreshToken(@CookieValue(name = "RefreshToken") String refreshToken, HttpServletResponse response) {
         return ResponseEntity.ok(authService.refreshToken(refreshToken, response));
+    }
+
+    @GetMapping("/profile")
+    public ResponseEntity<UserProfileResponseDTO> userProfile() {
+        return ResponseEntity.ok(authService.viewProfile());
     }
 
     //    Edit Profile

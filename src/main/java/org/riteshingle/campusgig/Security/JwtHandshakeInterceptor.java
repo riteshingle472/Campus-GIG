@@ -1,6 +1,7 @@
 package org.riteshingle.campusgig.Security;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.riteshingle.campusgig.JwtUtils.JwtUtils;
 import org.springframework.http.server.ServerHttpRequest;
 import org.springframework.http.server.ServerHttpResponse;
@@ -13,6 +14,7 @@ import java.util.Map;
 
 @Component
 @RequiredArgsConstructor
+@Slf4j
 public class JwtHandshakeInterceptor implements HandshakeInterceptor {
 
     private final JwtUtils jwtUtils;
@@ -23,11 +25,11 @@ public class JwtHandshakeInterceptor implements HandshakeInterceptor {
 
         if (request instanceof ServletServerHttpRequest servletRequest) {
             String token = servletRequest.getServletRequest().getParameter("token");
-            System.out.println("HANDSHAKE TOKEN = " + token);
+            log.info("HANDSHAKE TOKEN = {}", token);
 
-            if (token != null) {
+            if(token != null) {
                 String username = jwtUtils.extractEmail(token);
-                System.out.println("HANDSHAKE USERNAME = " + username);
+                log.info("HANDSHAKE USERNAME = {}", username);
                 if (username != null) {
                     attributes.put("username", username);
                 }

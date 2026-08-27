@@ -9,6 +9,7 @@ import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.riteshingle.campusgig.Enum.ContractStatus;
+import org.riteshingle.campusgig.Enum.ProgressStatus;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -29,6 +30,10 @@ public class Contract {
     @Column(nullable = false)
     private BigDecimal agreementAmount;
 
+    @OneToOne(mappedBy = "contract")
+    @JoinColumn(name = "conversation_id")
+    private Conversation conversation;
+
     @ManyToOne
     @JoinColumn(name = "job_id",updatable = false,nullable = false)
     private Job job;
@@ -48,6 +53,10 @@ public class Contract {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private ContractStatus contractStatus;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private ProgressStatus progressStatus;
 
     @NotNull(message = "Delivery date must required..")
     @Column(nullable = false)

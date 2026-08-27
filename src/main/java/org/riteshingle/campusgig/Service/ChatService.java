@@ -1,6 +1,7 @@
 package org.riteshingle.campusgig.Service;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.riteshingle.campusgig.Enum.ContractStatus;
 import org.riteshingle.campusgig.Model.Contract;
 import org.riteshingle.campusgig.Model.Conversation;
@@ -18,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.security.Principal;
 import java.util.List;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class ChatService {
@@ -30,25 +32,17 @@ public class ChatService {
     @Transactional
     public MessageResponse sendMessage(Long conversationId, SendMessageRequestDTO sendMessageRequestDTO, Principal principal) {
 
-        System.out.println("========== CHAT MESSAGE ==========");
-
-        System.out.println("Conversation ID = "+conversationId);
-
-        System.out.println("Message = "+sendMessageRequestDTO.message());
-
-        System.out.println("Principal = " + principal);
+        log.info("========== CHAT MESSAGE ==========");
+        log.info("Conversation ID = {}", conversationId);
+        log.info("Message = {}", sendMessageRequestDTO.message());
+        log.info("Principal = {}", principal);
 
 //        Get Current Logged-in user
-        if (principal == null) {
-            throw new RuntimeException(
-                    "User is not authenticated"
-            );
-        }
+        if(principal == null) throw new RuntimeException("User is not authenticated");
 
         String email = principal.getName();
 
-        UserEntity currentProfile = userEntityRepository.findByEmail(email)
-                .orElseThrow(() ->new RuntimeException("User not found"));
+        UserEntity currentProfile = userEntityRepository.findByEmail(email).orElseThrow(() ->new RuntimeException("User not found"));
 
 //        Find conversation
         Conversation conversation = conversationRepository.findById(conversationId)
@@ -61,11 +55,8 @@ public class ChatService {
             throw new RuntimeException("Conversation is not linked with contract");
 
 //        Check contract is authorized
-        if (contract.getContractStatus() != ContractStatus.PENDING) {
-            throw new RuntimeException(
-                    "Chat is available only for active contract"
-            );
-        }
+        if (contract.getContractStatus() != ContractStatus.ACTIVE)
+            throw new RuntimeException("Chat is available only for active contract");
 
         boolean isClient = contract.getClient().getId().equals(currentProfile.getId());
         boolean isGig = currentProfile.getGig() != null && contract.getGig().getId().equals(currentProfile.getGig().getId());
@@ -100,8 +91,7 @@ public class ChatService {
 
         Contract contract = conversation.getContract();
 
-        if (contract == null)
-            throw new RuntimeException("Contract not found");
+        if (contract == null) throw new RuntimeException("Contract not found");
 
         boolean isClient = contract.getClient().getId().equals(currentProfile.getId());
         boolean isGig = currentProfile.getGig() != null && contract.getGig().getId().equals(currentProfile.getGig().getId());

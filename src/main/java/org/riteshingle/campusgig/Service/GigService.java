@@ -24,6 +24,7 @@ import java.util.Optional;
 public class GigService {
     private final JobApplicationRepository jobApplicationRepository;
     private final AuthService authService;
+    private final ContractRepository contractRepository;
     private final UserSkillsRepository userSkillsRepository;
     private final UserEntityRepository userEntityRepository;
     private final SkillsRepository skillsRepository;
@@ -45,7 +46,7 @@ public class GigService {
         if(gig == null)
             throw new RuntimeException("Only gig can add skills ..");
 
-//        Get User existing skills
+//        Get GIG existing skills
         List<Long> userExistingSkills = userSkillsRepository.findSkillIdsByGigId(gig.getId());
 //        Filter skills from existing skills
         List<Long> newSkills = skillIds.stream().distinct().filter(id -> !userExistingSkills.contains(id)).toList();
@@ -65,7 +66,6 @@ public class GigService {
 
 //        save gig in DB
         gigRepository.save(gig);
-
         return "Changes Saved !";
     }
 
@@ -77,7 +77,7 @@ public class GigService {
             throw new RuntimeException("User is not verified ..");
 
         AvailabilityStatus availabilityStatus;
-        JobCategory jobCategory;
+        JobCategory title;
 
         try {
             availabilityStatus = AvailabilityStatus.valueOf(dto.getAvailabilityStatus().trim().toUpperCase());
@@ -86,7 +86,7 @@ public class GigService {
         }
 
         try {
-            jobCategory = JobCategory.valueOf(dto.getJobCategory().trim().toUpperCase());
+            title = JobCategory.valueOf(dto.getTitle().trim().toUpperCase());
         }catch (IllegalArgumentException e){
             throw new RuntimeException("Invalid Availability Status..");
         }
@@ -101,11 +101,13 @@ public class GigService {
             throw new RuntimeException("One or more skills not found");
 
         GIG gig = GIG.builder()
-                .title(dto.getTitle())
                 .user(currentProfile)
-                .jobCategory(jobCategory)
-                .availabilityStatus(availabilityStatus)
+                .title(title)
                 .description(dto.getDescription())
+                .availabilityStatus(availabilityStatus)
+                .college(dto.getCollege())
+                .department(dto.getDepartment())
+                .semester(dto.getSemester())
                 .build();
 
         List<UserSkills> userSkills = skills.stream().map((skill -> new UserSkills(gig, skill))).toList();
@@ -182,10 +184,6 @@ public class GigService {
         Job job = jobRepository.findById(jobId).orElseThrow(() -> new RuntimeException("Job not found with ID : " + jobId + ".."));
         UserEntity client = authService.getCurrentProfile();
         GIG gig = client.getGig();
-
-        System.out.println("=========================================================================");
-        System.out.println(jobId+"  "+job.getCategory().name());
-        System.out.println("=========================================================================");
 
 //        Check user is verified or not
         if(!client.getIsVerified())
@@ -298,9 +296,7 @@ public class GigService {
         return jobApplicationRepository.findAll(specification,pageable).stream().map(this::jobApplicationSortingAndFilteringResponseDTO).toList();
     }
 
-
 //    helper methods
-
     private JobApplicationSortingAndFilteringResponseDTO jobApplicationSortingAndFilteringResponseDTO(JobApplication jobApplication){
         return JobApplicationSortingAndFilteringResponseDTO.builder()
                 .budget(jobApplication.getBidAmount())

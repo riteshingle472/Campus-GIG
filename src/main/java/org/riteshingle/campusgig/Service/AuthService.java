@@ -2,8 +2,6 @@ package org.riteshingle.campusgig.Service;
 
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
-import org.jspecify.annotations.NonNull;
-import org.riteshingle.campusgig.Enum.AvailabilityStatus;
 import org.riteshingle.campusgig.Enum.Roles;
 import org.riteshingle.campusgig.JwtUtils.JwtUtils;
 import org.riteshingle.campusgig.Model.*;
@@ -11,6 +9,7 @@ import org.riteshingle.campusgig.RequestDTO.*;
 import org.riteshingle.campusgig.Repository.RefreshTokenRepository;
 import org.riteshingle.campusgig.Repository.UserEntityRepository;
 import org.riteshingle.campusgig.ResponseDTO.EditResponseDTO;
+import org.riteshingle.campusgig.ResponseDTO.UserProfileResponseDTO;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
 import org.springframework.security.core.Authentication;
@@ -47,8 +46,10 @@ public class AuthService {
                 .email(dto.getEmail())
                 .password(passwordEncoder.encode(dto.getPassword()))
                 .firstName(dto.getFirstName())
+                .phoneNumber(dto.getPhoneNumber())
+                .dob(dto.getDob())
                 .lastName(dto.getLastName())
-                .roles(Roles.USER)
+                .roles(Roles.CLIENT)
                 .build();
 
         userEntityRepository.save(user);
@@ -131,7 +132,12 @@ public class AuthService {
         return user;
     }
 
-//    Email verification OTP
+    public UserProfileResponseDTO viewProfile(){
+        UserEntity currentProfile = getCurrentProfile();
+        return toResponse(currentProfile);
+    }
+
+    //    Email verification OTP
     public String verifyEmailOTP(){
         return this.generateSixDigitOTP();
     }
@@ -170,30 +176,6 @@ public class AuthService {
         }
     }
 
-//    Complete Profile
-    public String completeProfile(CompleteProfileRequestDTO dto){
-        AvailabilityStatus availabilityStatus;
-
-//        Check Availability Status is existed or not
-        try{
-            availabilityStatus = AvailabilityStatus.valueOf(dto.getAvailableStatus().trim().toUpperCase());
-        }catch (Exception e){
-            throw new RuntimeException("Select Correct Status");
-        }
-
-//        Set details in user profile
-        UserEntity currentProfile = getUser(dto);
-
-        if(currentProfile.getIsProfileComplete()){
-            throw new RuntimeException("Profile is already completed..");
-        }
-
-        currentProfile.setIsProfileComplete(true);
-//        save profile in DB
-        userEntityRepository.save(currentProfile);
-        return "Profile Completed !";
-    }
-
 //    Refresh Token
     public Map<String, Object> refreshToken(String refreshToken,HttpServletResponse response){
 //        Token Expiry
@@ -212,19 +194,19 @@ public class AuthService {
 
 //        Generate New Access Token
         String accessToken = jwtUtils.generateToken(currentProfile.getEmail(), ACCESS_TOKEN_EXPIRY);
-//        refreshToken = jwtUtils.generateToken(currentProfile.getEmail(), ACCESS_TOKEN_EXPIRY);
-//
-//        ResponseCookie cookie = ResponseCookie.from("RefreshToken",refreshToken)
-//                .maxAge(Duration.ofDays(7))
-//                .secure(false)
-//                .httpOnly(true)
-//                .sameSite("Lax")
-//                .path("/auth/refresh-token")
-//                .build();
-//        response.addHeader(HttpHeaders.SET_COOKIE,cookie.toString());
-//
-//        refresh.setRefreshToken(refreshToken);
-//        refreshTokenRepository.save(refresh);
+        refreshToken = jwtUtils.generateToken(currentProfile.getEmail(), ACCESS_TOKEN_EXPIRY);
+
+        ResponseCookie cookie = ResponseCookie.from("RefreshToken",refreshToken)
+                .maxAge(Duration.ofDays(7))
+                .secure(false)
+                .httpOnly(true)
+                .sameSite("Lax")
+                .path("/auth/refresh-token")
+                .build();
+        response.addHeader(HttpHeaders.SET_COOKIE,cookie.toString());
+
+        refresh.setRefreshToken(refreshToken);
+        refreshTokenRepository.save(refresh);
 
 //        Return Response
         return Map.of("Access Token",accessToken);
@@ -233,56 +215,28 @@ public class AuthService {
 
 //    Edit Profile
     public EditResponseDTO editProfile(EditProfileRequestDTO dto) {
-        UserEntity user = getCurrentProfile();
-
-        if (dto.getFirstName() != null && !dto.getFirstName().isBlank()) {
-            user.setFirstName(dto.getFirstName());
-        }
-
-        if (dto.getLastName() != null && !dto.getLastName().isBlank()) {
-            user.setLastName(dto.getLastName());
-        }
-
-        if (dto.getEmail() != null && !dto.getEmail().isBlank()) {
-            user.setEmail(dto.getEmail());
-        }
-
-        if (dto.getPhoneNumber() != null && !dto.getPhoneNumber().isBlank()) {
-            user.setPhoneNumber(dto.getPhoneNumber());
-        }
-
-        if (dto.getCollege() != null && !dto.getCollege().isBlank()) {
-            user.setCollege(dto.getCollege());
-        }
-
-        if (dto.getDepartment() != null && !dto.getDepartment().isBlank()) {
-            user.setDepartment(dto.getDepartment());
-        }
-
-        if (dto.getSemester() != null) {
-            user.setSemester(dto.getSemester());
-        }
-
-        if (dto.getProfileImage() != null && !dto.getProfileImage().isBlank()) {
-            user.setProfileImage(dto.getProfileImage());
-        }
-
-        if (dto.getShortBio() != null && !dto.getShortBio().isBlank()) {
-            user.setShortBio(dto.getShortBio());
-        }
-
-        if (dto.getAvailabilityStatus() != null && !dto.getAvailabilityStatus().isBlank()) {
-            AvailabilityStatus availabilityStatus;
-
-            try {
-                availabilityStatus = AvailabilityStatus.valueOf(dto.getAvailabilityStatus().trim().toUpperCase());
-            }catch (Exception e){
-                throw new RuntimeException("Status not found");
-            }
-        }
-
+        UserEntity user = getUpdatedUser(dto);
         userEntityRepository.save(user);
         return editResponseDTO(user);
+    }
+
+    private UserEntity getUpdatedUser(EditProfileRequestDTO dto) {
+        UserEntity user = getCurrentProfile();
+
+        if (dto.getFirstName() != null && !dto.getFirstName().isBlank())
+            user.setFirstName(dto.getFirstName());
+
+        if (dto.getLastName() != null && !dto.getLastName().isBlank())
+            user.setLastName(dto.getLastName());
+
+        if (dto.getEmail() != null && !dto.getEmail().isBlank()) user.setEmail(dto.getEmail());
+
+        if (dto.getPhoneNumber() != null && !dto.getPhoneNumber().isBlank())
+            user.setPhoneNumber(dto.getPhoneNumber());
+
+        if(dto.getDob() != null) user.setDob(dto.getDob());
+
+        return user;
     }
 
 //    Helper methods
@@ -297,26 +251,24 @@ public class AuthService {
         return EditResponseDTO.builder()
                 .lastName(user.getLastName())
                 .firstName(user.getFirstName())
-                .college(user.getCollege())
-                .department(user.getDepartment())
-                .profileImage(user.getProfileImage())
-                .semester(user.getSemester())
-                .shortBio(user.getShortBio())
+                .email(user.getEmail())
+                .dob(user.getDob())
                 .phoneNumber(user.getPhoneNumber())
-                .dob(user.getDob().toString())
                 .build();
     }
 
-    private UserEntity getUser(CompleteProfileRequestDTO dto) {
-        UserEntity currentProfile = getCurrentProfile();
-
-        currentProfile.setCollege(dto.getCollege());
-        currentProfile.setProfileImage(dto.getProfileImage());
-        currentProfile.setDepartment(dto.getDepartment());
-        currentProfile.setSemester(dto.getSemester());
-        currentProfile.setPhoneNumber(dto.getPhoneNumber());
-        currentProfile.setShortBio(dto.getShortBio());
-        currentProfile.setDob(dto.getDob());
-        return currentProfile;
+    private UserProfileResponseDTO toResponse(UserEntity currentProfile) {
+        return UserProfileResponseDTO.builder()
+                .averageRating(currentProfile.getAverageRating())
+                .createdAt(currentProfile.getCreatedAt())
+                .email(currentProfile.getEmail())
+                .profileImage(currentProfile.getProfileImage())
+                .dob(currentProfile.getDob())
+                .totalRatings(currentProfile.getTotalRatings())
+                .firstName(currentProfile.getFirstName())
+                .phoneNumber(currentProfile.getPhoneNumber())
+                .lastName(currentProfile.getLastName())
+                .id(currentProfile.getId())
+                .build();
     }
 }
