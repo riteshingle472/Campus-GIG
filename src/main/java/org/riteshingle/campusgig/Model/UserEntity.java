@@ -15,6 +15,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 @Data
 @Entity
@@ -50,8 +51,14 @@ public class UserEntity {
     @NotNull(message = "Is verified can not be null")
     private Boolean isVerified;
 
+    @ElementCollection(targetClass = Roles.class)
     @Enumerated(EnumType.STRING)
-    private Roles roles;
+    @CollectionTable(
+            name = "user_roles",
+            joinColumns = @JoinColumn(name = "user_id")
+    )
+    @Column(name = "role")
+    private Set<Roles> roles;
 
     @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     private GIG gig;
@@ -69,10 +76,12 @@ public class UserEntity {
     @Past(message = "Date of birth must be in the past")
     private LocalDate dob;
 
+    @Builder.Default
     @Column(nullable = false)
     @NotNull(message = "Average Rating must required..")
     private Long totalRatingSum = 0L;
 
+    @Builder.Default
     @Column(nullable = false)
     @NotNull(message = "Total Rating must required..")
     private Long totalRatings = 0L;

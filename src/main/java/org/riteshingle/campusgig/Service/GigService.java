@@ -113,7 +113,8 @@ public class GigService {
         List<UserSkills> userSkills = skills.stream().map((skill -> new UserSkills(gig, skill))).toList();
 
         gig.setUserSkills(userSkills);
-        currentProfile.setRoles(Roles.GIG);
+        currentProfile.getRoles().clear();
+        currentProfile.getRoles().add(Roles.GIG);
 
         userEntityRepository.save(currentProfile);
         gigRepository.save(gig);

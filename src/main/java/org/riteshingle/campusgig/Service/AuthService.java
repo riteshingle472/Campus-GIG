@@ -20,9 +20,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 
 import java.security.SecureRandom;
 import java.time.Duration;
-import java.util.Date;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
@@ -41,15 +39,17 @@ public class AuthService {
         Optional<UserEntity> byEmail = userEntityRepository.findByEmail(dto.getEmail());
         if (byEmail.isPresent()) throw new RuntimeException("User already Exists with : " + dto.getEmail());
 
+        Set<Roles> roles = Set.of(Roles.CLIENT);
+
 //        Create User Entity and Save in DB
         UserEntity user = UserEntity.builder()
                 .email(dto.getEmail())
                 .password(passwordEncoder.encode(dto.getPassword()))
                 .firstName(dto.getFirstName())
+                .lastName(dto.getLastName())
+                .roles(roles)
                 .phoneNumber(dto.getPhoneNumber())
                 .dob(dto.getDob())
-                .lastName(dto.getLastName())
-                .roles(Roles.CLIENT)
                 .build();
 
         userEntityRepository.save(user);

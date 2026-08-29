@@ -20,5 +20,6 @@ public enum JobCategory {
     TUTORING,
     TRANSLATION,
     FRONTEND_DEVELOPMENT,
+    PHOTOGRAPHY,
     OTHER
 }

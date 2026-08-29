@@ -64,11 +64,28 @@ public class ContractService {
         return contracts.stream().map(this::contractDetailsResponseDTO).toList();
     }
 
+    public ContractDetailsResponseDTO getContract(Long contractId){
+        Contract contract = contractRepository.findById(contractId).orElseThrow(() -> new RuntimeException("Contract not found by ID : " + contractId));
+        UserEntity currentProfile = authService.getCurrentProfile();
+
+        if(currentProfile.getRoles().equals(Roles.USER)){
+            throw new RuntimeException("You are not authorized to check contract..");
+        }
+
+        boolean isGig = currentProfile.getGig() != null && contract.getGig().getUser().getId().equals(currentProfile.getId());
+        boolean isClient = contract.getClient().getId().equals(currentProfile.getId());
+
+        if (!isClient && !isGig)
+            throw new RuntimeException("You are not a participant of this conversation");
+
+        return contractDetailsResponseDTO(contract);
+    }
+
     public void closeContract(Long contractId){
         Contract contract = contractRepository.findById(contractId).orElseThrow(() -> new RuntimeException("Contract not found by ID : " + contractId));
         UserEntity currentProfile = authService.getCurrentProfile();
 
-        if(!currentProfile.getRoles().equals(Roles.CLIENT)){
+        if(!currentProfile.getRoles().contains(Roles.CLIENT)){
             throw new RuntimeException("You are not authorized update contract..");
         }
 

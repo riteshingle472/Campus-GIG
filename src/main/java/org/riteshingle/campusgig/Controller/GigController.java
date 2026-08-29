@@ -18,36 +18,37 @@ import java.util.List;
 public class GigController {
     private final GigService gigService;
 
+    @PreAuthorize("hasRole('CLIENT')")
     @PostMapping("/become-gig")
     public ResponseEntity<String> becomeGig(@RequestBody BecomeGigRequestDTO dto){
         return ResponseEntity.ok(gigService.becomeGig(dto));
     }
 
-    @PreAuthorize("/hasRole('GIG')")
+    @PreAuthorize("hasRole('GIG')")
     @PostMapping("/add-skills")
     public ResponseEntity<String> addSkills(@RequestBody AddSkillsRequestDTO dto){
         return ResponseEntity.ok(gigService.addSkills(dto.getSkillsId()));
     }
 
-    @PreAuthorize("/hasRole('GIG')")
+    @PreAuthorize("hasRole('GIG')")
     @PostMapping("/apply-job")
     public ResponseEntity<String> applyForJob(@RequestBody JobApplicationRequestDTO dto){
         return ResponseEntity.ok(gigService.applyForJob(dto));
     }
 
-    @PreAuthorize("/hasRole('GIG')")
+    @PreAuthorize("hasRole('GIG')")
     @PutMapping("/update-job-application/{jobApplicationId}")
     public ResponseEntity<String> updateJobApplication(@PathVariable Long jobApplicationId , @RequestBody UpdateJobApplicationRequestDTO dto){
         return ResponseEntity.ok(gigService.updateJobApplication(jobApplicationId,dto));
     }
 
-    @PreAuthorize("/hasRole('GIG')")
+    @PreAuthorize("hasRole('GIG')")
     @PostMapping("/withdraw-job-application/{jobApplicationId}")
     public ResponseEntity<String> withdrawJobByJobApplicationId(@PathVariable Long jobApplicationId){
         return ResponseEntity.ok(gigService.withdrawJobApplicationByJobApplicationId(jobApplicationId));
     }
 
-    @PreAuthorize("/hasRole('GIG')")
+    @PreAuthorize("hasRole('GIG')")
     @GetMapping("/get-all-job-application")
     public ResponseEntity<List<JobApplicationSortingAndFilteringResponseDTO>> getAllJobApplication(@RequestBody JobApplicationFilterAndSortingRequestDTO dto,
                                                                                                    @RequestParam(required = false,defaultValue = "10") int pageSize,

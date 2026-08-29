@@ -31,28 +31,24 @@ public class AuthController {
     }
 
     //    Email varification OTP API
-    @PreAuthorize("/hasRole('USER' , 'GIG')")
     @GetMapping("/email-verification-otp")
     public ResponseEntity<String> verifyEmailOTP() {
         return ResponseEntity.ok(authService.verifyEmailOTP());
     }
 
     //    Email Varification API
-    @PreAuthorize("/hasRole('USER' , 'GIG')")
     @PostMapping("/verify-email")
     public ResponseEntity<String> verifyEmail(@RequestParam String otp) {
         return ResponseEntity.ok(authService.verifyEmail(otp));
     }
 
     //    Forgot Password OTP API
-    @PreAuthorize("/hasRole('USER' , 'GIG')")
     @GetMapping("/forgot-password-otp")
     public ResponseEntity<String> forgotPasswordOTP() {
         return ResponseEntity.ok(authService.forgotPasswordOTP());
     }
 
     //    Forgot/Change Password API
-    @PreAuthorize("/hasRole('USER' , 'GIG')")
     @PostMapping("/forgot-password")
     public ResponseEntity<String> forgotPassword(@RequestParam String otp, @RequestParam String newPassword) {
         return ResponseEntity.ok(authService.forgotPassword(otp, newPassword));
@@ -71,7 +67,7 @@ public class AuthController {
 
     //    Edit Profile
     @PutMapping("/edit-profile")
-    @PreAuthorize("/hasRole('USER' , 'GIG')")
+    @PreAuthorize("hasRole('CLIENT') or hasRole('GIG')")
     public ResponseEntity<EditResponseDTO> editProfile(@RequestBody EditProfileRequestDTO dto) {
         return ResponseEntity.ok(authService.editProfile(dto));
     }
