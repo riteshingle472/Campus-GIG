@@ -1,7 +1,9 @@
 package org.riteshingle.campusgig.Controller;
 
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.apache.coyote.Response;
+import org.riteshingle.campusgig.RequestDTO.ContractCancelOrWithdrawnRequestDTO;
 import org.riteshingle.campusgig.ResponseDTO.ContractDetailsResponseDTO;
 import org.riteshingle.campusgig.Service.ContractService;
 import org.springframework.http.ResponseEntity;
@@ -29,16 +31,30 @@ public class ContractController {
     }
 
     @PreAuthorize("hasRole('GIG')")
-    @PostMapping("/progress")
+    @PatchMapping("/progress")
     public ResponseEntity<?> updateProgress(@RequestParam Long contractId,@RequestParam String progress){
         contractService.setProgress(contractId,progress);
         return ResponseEntity.noContent().build();
     }
 
     @PreAuthorize("hasRole('CLIENT')")
-    @PostMapping("/close-contract/{contractId}")
-    public ResponseEntity<?> closeContract(@PathVariable Long contractId){
-        contractService.closeContract(contractId);
+    @PatchMapping("/complete-contract/{contractId}")
+    public ResponseEntity<?> completeContract(@PathVariable Long contractId){
+        contractService.completeContract(contractId);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PreAuthorize("hasRole('CLIENT')")
+    @PatchMapping("/active-contract/{contractId}")
+    public ResponseEntity<?> activeContract(@PathVariable Long contractId){
+        contractService.activeContract(contractId);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PreAuthorize("hasRole('CLIENT') OR hasRole('GIG')")
+    @PatchMapping("/break-contract/{contractId}")
+    public ResponseEntity<?> cancelOrWithdrawnContract(@PathVariable Long contractId, @Valid @RequestBody ContractCancelOrWithdrawnRequestDTO dto){
+        contractService.cancelOrWithdrawnContract(contractId,dto);
         return ResponseEntity.noContent().build();
     }
 }

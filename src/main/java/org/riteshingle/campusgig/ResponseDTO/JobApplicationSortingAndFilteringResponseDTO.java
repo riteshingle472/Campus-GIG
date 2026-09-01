@@ -8,6 +8,7 @@ import org.riteshingle.campusgig.Enum.JobApplicationStatus;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Data
 @Builder
@@ -18,5 +19,5 @@ public class JobApplicationSortingAndFilteringResponseDTO {
     private String coverLetter;
     private JobApplicationStatus jobApplicationStatus;
     private LocalDate deliveryDate;
-    private LocalDate applyAt;
+    private LocalDateTime applyAt;
 }

@@ -2,5 +2,7 @@ package org.riteshingle.campusgig.Enum;
 
 public enum AvailabilityStatus {
     AVAILABLE,
-    UN_AVAILABLE
+    UN_AVAILABLE,
+    BLOCKED,
+    UN_BLOCKED
 }

@@ -9,6 +9,7 @@ import org.riteshingle.campusgig.Service.JobService;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -26,9 +27,10 @@ public class JobController {
 //    For -> Client
 //    Create Job
     @PreAuthorize("hasRole('CLIENT')")
-    @PostMapping("/create-job")
-    public ResponseEntity<String> createJob(@RequestBody JobRequestDTO dto){
-        return ResponseEntity.ok(jobService.publishJob(dto));
+    @PostMapping("/job")
+    public ResponseEntity<?> createJob(@RequestBody JobRequestDTO dto){
+        jobService.publishJob(dto);
+        return ResponseEntity.status(HttpStatus.CREATED).build();
     }
 
 //    For -> EveryOne
@@ -45,8 +47,8 @@ public class JobController {
 
 //    For -> Everyone
 //    Get Job by ID
-@PreAuthorize("hasRole('CLIENT') or hasRole('GIG')")
-    @GetMapping("/get-job/{id}")
+    @PreAuthorize("hasRole('CLIENT') or hasRole('GIG')")
+    @GetMapping("/job/{id}")
     public ResponseEntity<JobResponseDTO> getJob(@PathVariable Long id){
         return ResponseEntity.ok(jobService.getJob(id));
     }
@@ -54,15 +56,16 @@ public class JobController {
 //    For -> client
 //    Draft Job
     @PreAuthorize("hasRole('CLIENT')")
-    @PostMapping("/draft-job")
-    public ResponseEntity<String> draftJob(@RequestBody JobRequestDTO dto){
-        return ResponseEntity.ok(jobService.draftJob(dto));
+    @PostMapping("/draft")
+    public ResponseEntity<?> draftJob(@RequestBody JobRequestDTO dto){
+        jobService.draftJob(dto);
+        return ResponseEntity.status(HttpStatus.CREATED).build();
     }
 
 //    For -> client
 //    Get Draft Job
     @PreAuthorize("hasRole('CLIENT')")
-    @GetMapping("/draft-job/{draftId}")
+    @GetMapping("/draft/{draftId}")
     public ResponseEntity<JobRequestDTO> getDraft(@PathVariable String draftId){
         return ResponseEntity.ok(jobService.getDraft(draftId));
     }
@@ -71,16 +74,17 @@ public class JobController {
 //    Delete Job
 //    Soft delete
     @PreAuthorize("hasRole('CLIENT')")
-    @DeleteMapping("/delete-job")
-    public ResponseEntity<String> deleteJob(@RequestParam Long jobId){
-         return ResponseEntity.ok(jobService.deleteJob(jobId));
+    @DeleteMapping("/job")
+    public ResponseEntity<?> deleteJob(@RequestParam Long jobId){
+        jobService.deleteJob(jobId);
+         return ResponseEntity.noContent().build();
     }
 
 //    For -> client
 //    Remove Draft
 //    Permanent delete
     @PreAuthorize("hasRole('CLIENT')")
-    @DeleteMapping("/remove-draft/{draftId}")
+    @DeleteMapping("/draft/{draftId}")
     public ResponseEntity<?> removeDraft(@PathVariable String draftId){
         jobService.removeDraft(draftId);
         return ResponseEntity.noContent().build();
@@ -89,7 +93,7 @@ public class JobController {
 //    For -> Client
 //    Get all draft Job
     @PreAuthorize("hasRole('CLIENT')")
-    @GetMapping("/draft-jobs")
+    @GetMapping("/drafts")
     public ResponseEntity<List<JobRequestDTO>> getAllDraftJob(){
         return ResponseEntity.of(Optional.ofNullable(jobService.getAllDraft()));
     }
@@ -97,46 +101,49 @@ public class JobController {
 //    For -> Client
 //    Edit published job
     @PreAuthorize("hasRole('CLIENT')")
-    @PutMapping("/edit-job/{id}")
-    public ResponseEntity<String> editJob(@PathVariable Long id, @RequestBody JobRequestDTO dto){
-        return ResponseEntity.ok(jobService.editJob(dto,id));
+    @PatchMapping("/job/{id}")
+    public ResponseEntity<?> editJob(@PathVariable Long id, @RequestBody JobRequestDTO dto){
+        jobService.editJob(dto,id);
+        return ResponseEntity.noContent().build();
     }
 
 //    For -> Client
 //    Edit published job
     @PreAuthorize("hasRole('CLIENT')")
-    @PutMapping("/update-draft-job")
-    public ResponseEntity<String> updateJob(@RequestBody JobRequestDTO dto){
-        return ResponseEntity.ok(jobService.updateDraftJob(dto));
+    @PatchMapping("/draft")
+    public ResponseEntity<?> updateJob(@RequestBody JobRequestDTO dto){
+        jobService.updateDraftJob(dto);
+        return ResponseEntity.noContent().build();
     }
 
     @PreAuthorize("hasRole('CLIENT')")
-    @GetMapping("/job-applicants/{jobId}")
+    @GetMapping("/proposals/{jobId}")
     public ResponseEntity<List<JobApplicantResponseDTO>> getAllJobApplicant(@PathVariable Long jobId){
         return ResponseEntity.ok(jobService.getAllJobApplicant(jobId));
     }
 
     @PreAuthorize("hasRole('CLIENT')")
-    @GetMapping("/client-posted-jobs")
+    @GetMapping("/my-jobs")
     public ResponseEntity<List<JobResponseDTO>> getJobsPostByMe(@RequestParam String status){
         return ResponseEntity.ok(jobService.getAllJobsPostByMe(status));
     }
 
     @PreAuthorize("hasRole('GIG')")
-    @PostMapping("/withdraw-job-application/{jobId}")
-    public ResponseEntity<String> withdrawJobApplicationByJobId(@PathVariable Long jobId){
-        return ResponseEntity.ok(gigService.withdrawJobApplicationByJobId(jobId));
+    @PatchMapping("/withdraw-proposal/{jobId}")
+    public ResponseEntity<?> withdrawJobApplicationByJobId(@PathVariable Long jobId){
+        gigService.withdrawJobApplicationByJobId(jobId);
+        return ResponseEntity.noContent().build();
     }
 
     @PreAuthorize("hasRole('CLIENT')")
-    @PostMapping("/accept-job-proposal")
+    @PatchMapping("/accept-proposal")
     public ResponseEntity<?> acceptJobApplication(@RequestParam Long jobId,@RequestParam Long applicationId){
         jobService.acceptJobProposal(jobId,applicationId);
         return ResponseEntity.noContent().build();
     }
 
     @PreAuthorize("hasRole('CLIENT')")
-    @PostMapping("/reject-job-proposal")
+    @PatchMapping("/reject-proposal")
     public ResponseEntity<?> rejectJobApplication(@RequestParam Long applicationId){
         jobService.rejectJobProposal(applicationId);
         return ResponseEntity.noContent().build();

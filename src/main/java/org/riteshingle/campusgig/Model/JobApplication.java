@@ -12,6 +12,7 @@ import org.riteshingle.campusgig.Enum.JobApplicationStatus;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Data
 @Entity
@@ -50,9 +51,9 @@ public class JobApplication {
 
     @CreationTimestamp
     @Column(nullable = false,updatable = false)
-    private LocalDate createAt;
+    private LocalDateTime createdAt;
 
     @UpdateTimestamp
     @Column(nullable = false)
-    private LocalDate updateAt;
+    private LocalDateTime updatedAt;
 }

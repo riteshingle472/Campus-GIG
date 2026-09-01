@@ -14,15 +14,17 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 public class GigResponseDTO {
+    private Long id;
     private String gigFirstName;
     private String gigLastName;
     private String gigEmail;
     private String gigPhoneNumber;
+    private String jobCategory;
+    private String title;
     private String college;
     private String department;
     private Integer semester;
     private String description;
-    private JobCategory title;
     private AvailabilityStatus availabilityStatus;
     private List<String> gigSkills;
 }

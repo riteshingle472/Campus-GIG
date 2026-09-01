@@ -25,20 +25,18 @@ public interface JobApplicationRepository extends JpaRepository<JobApplication, 
 
     boolean existsByJobIdAndGigId(Long jobId, Long gigId);
 
-    @Query("SELECT COUNT(j) FROM JobApplication j WHERE j.createAt >= :fromDate AND j.createAt <= :toDate AND j.jobApplicationStatus = :status")
-    Long findTotalJobApplicationByStatus(@Param("status") JobApplicationStatus jobApplicationStatus,@Param("fromDate") LocalDate from,@Param("toDate") LocalDate to);
+    @Query("SELECT COUNT(j) FROM JobApplication j WHERE j.createdAt >= :fromDate AND j.createdAt <= :toDate AND j.jobApplicationStatus = :status")
+    Long findTotalJobApplicationByStatus(@Param("status") JobApplicationStatus jobApplicationStatus,@Param("fromDate") LocalDateTime from,@Param("toDate") LocalDateTime to);
 
     @Query("""
-                SELECT FUNCTION('DATE', a.createAt), COUNT(a)
+                SELECT FUNCTION('DATE', a.createdAt), COUNT(a)
                 FROM JobApplication a
-                WHERE a.jobApplicationStatus = :status AND a.createAt >= :fromDate
-                AND a.createAt <= :toDate
-                GROUP BY FUNCTION('DATE', a.createAt)
-                ORDER BY FUNCTION('DATE', a.createAt)
+                WHERE a.createdAt >= :fromDate
+                AND a.createdAt <= :toDate
+                GROUP BY FUNCTION('DATE', a.createdAt)
+                ORDER BY FUNCTION('DATE', a.createdAt)
             """)
     List<Object[]> getApplicationGrowth(
-            @Param("fromDate") LocalDate fromDate,
-            @Param("toDate") LocalDate toDate,
-            @Param("status") JobApplicationStatus jobApplicationStatus
-    );
+            @Param("fromDate") LocalDateTime fromDate,
+            @Param("toDate") LocalDateTime toDate);
 }

@@ -3,6 +3,8 @@ package org.riteshingle.campusgig.Service;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.riteshingle.campusgig.Enum.Roles;
+import org.riteshingle.campusgig.Exception.ConflictException;
+import org.riteshingle.campusgig.Exception.ResourceNotFoundException;
 import org.riteshingle.campusgig.JwtUtils.JwtUtils;
 import org.riteshingle.campusgig.Model.*;
 import org.riteshingle.campusgig.RequestDTO.*;
@@ -16,6 +18,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.RequestMapping;
 
 import java.security.SecureRandom;
@@ -25,6 +28,7 @@ import java.util.*;
 @Service
 @RequiredArgsConstructor
 @RequestMapping("/auth")
+@Transactional
 public class AuthService {
     private final UserEntityRepository userEntityRepository;
     private final RefreshTokenRepository refreshTokenRepository;
@@ -34,10 +38,10 @@ public class AuthService {
     private final SecureRandom random = new SecureRandom();
 
 //    Register User
-    public String registerUser(RegisterUserRequestDTO dto) {
+    public void registerUser(RegisterUserRequestDTO dto) {
 //        Check user is already exists or not ?
         Optional<UserEntity> byEmail = userEntityRepository.findByEmail(dto.getEmail());
-        if (byEmail.isPresent()) throw new RuntimeException("User already Exists with : " + dto.getEmail());
+        if (byEmail.isPresent()) throw new ConflictException("User already Exists with : " + dto.getEmail());
 
         Set<Roles> roles = Set.of(Roles.CLIENT);
 
@@ -53,7 +57,6 @@ public class AuthService {
                 .build();
 
         userEntityRepository.save(user);
-        return "User saved";
     }
 
 //    Login
@@ -63,7 +66,7 @@ public class AuthService {
         Date REFRESH_TOKEN_EXPIRY = new Date(System.currentTimeMillis() + (21 * 24 * 60 * 60 * 1000));
 
 //        Get a user by Email
-        UserEntity user = userEntityRepository.findByEmail(dto.getEmail()).orElseThrow(() -> new RuntimeException("User not found"));
+        UserEntity user = userEntityRepository.findByEmailWithRoles(dto.getEmail()).orElseThrow(() -> new ResourceNotFoundException("User not found"));
 //        Get RefreshToken By user
         Optional<RefreshToken> byUser = refreshTokenRepository.findByUser(user);
         RefreshToken refreshToken;
@@ -83,7 +86,7 @@ public class AuthService {
 
 //            If is expired then generate new token and save in DB
             if (tokenExpired) {
-                refresh = jwtUtils.generateToken(dto.getEmail(), REFRESH_TOKEN_EXPIRY);
+                refresh = jwtUtils.generateToken(dto.getEmail(), REFRESH_TOKEN_EXPIRY,user.getRoles());
                 refreshToken.setRefreshToken(refresh);
                 refreshTokenRepository.save(refreshToken);
             }
@@ -94,7 +97,7 @@ public class AuthService {
         }
 //        Create a new entity and Generate token and save in DB
         else {
-            refresh = jwtUtils.generateToken(dto.getEmail(), REFRESH_TOKEN_EXPIRY);
+            refresh = jwtUtils.generateToken(dto.getEmail(), REFRESH_TOKEN_EXPIRY,user.getRoles());
             refreshToken = RefreshToken.builder().refreshToken(refresh).user(user).build();
             refreshTokenRepository.save(refreshToken);
         }
@@ -110,25 +113,21 @@ public class AuthService {
         response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
 
 //        Generate and Return Access token
-        try {
-            String accessToken = jwtUtils.generateToken(dto.getEmail(), ACCESS_TOKEN_EXPIRY);
-            return Map.of("Access Token", accessToken);
-        } catch (Exception e) {
-            throw new RuntimeException("Invalid Credential");
-        }
+        String accessToken = jwtUtils.generateToken(dto.getEmail(),ACCESS_TOKEN_EXPIRY,user.getRoles());
+        return Map.of("Access Token", accessToken);
     }
 
 //    Get current logged-in profile
     public UserEntity getCurrentProfile() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        return userEntityRepository.findByEmail(authentication.getName()).orElseThrow(() -> new RuntimeException("User not found"));
+        return userEntityRepository.findByEmail(authentication.getName()).orElseThrow(() -> new ResourceNotFoundException("User not found"));
     }
 
 //    Get public profile
     public UserEntity getPublicProfile(String email) {
         UserEntity user;
         if (email == null) user = getCurrentProfile();
-        else user = userEntityRepository.findByEmail(email).orElseThrow(() -> new RuntimeException("User not found"));
+        else user = userEntityRepository.findByEmail(email).orElseThrow(() -> new ResourceNotFoundException("User not found"));
         return user;
     }
 
@@ -185,7 +184,7 @@ public class AuthService {
 //        Get Current Logged-in profile
         UserEntity currentProfile = getCurrentProfile();
 //        Get Refresh Token Entity by user
-        RefreshToken refresh = refreshTokenRepository.findByUser(currentProfile).orElseThrow(() -> new RuntimeException("Refresh Token not found with : " + currentProfile.getId() + "..."));
+        RefreshToken refresh = refreshTokenRepository.findByUser(currentProfile).orElseThrow(() -> new ResourceNotFoundException("Refresh Token not found with : " + currentProfile.getId() + "..."));
 
 //        Check token is expired or not
         if(jwtUtils.isExpire(refreshToken)){
@@ -193,8 +192,8 @@ public class AuthService {
         }
 
 //        Generate New Access Token
-        String accessToken = jwtUtils.generateToken(currentProfile.getEmail(), ACCESS_TOKEN_EXPIRY);
-        refreshToken = jwtUtils.generateToken(currentProfile.getEmail(), ACCESS_TOKEN_EXPIRY);
+        String accessToken = jwtUtils.generateToken(currentProfile.getEmail(), ACCESS_TOKEN_EXPIRY,currentProfile.getRoles());
+        refreshToken = jwtUtils.generateToken(currentProfile.getEmail(), REFRESH_TOKEN_EXPIRY,currentProfile.getRoles());
 
         ResponseCookie cookie = ResponseCookie.from("RefreshToken",refreshToken)
                 .maxAge(Duration.ofDays(7))

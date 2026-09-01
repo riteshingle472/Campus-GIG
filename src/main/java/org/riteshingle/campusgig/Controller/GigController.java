@@ -6,6 +6,7 @@ import org.riteshingle.campusgig.ResponseDTO.JobApplicationSortingAndFilteringRe
 import org.riteshingle.campusgig.Service.GigService;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -20,36 +21,41 @@ public class GigController {
 
     @PreAuthorize("hasRole('CLIENT')")
     @PostMapping("/become-gig")
-    public ResponseEntity<String> becomeGig(@RequestBody BecomeGigRequestDTO dto){
-        return ResponseEntity.ok(gigService.becomeGig(dto));
+    public ResponseEntity<?> becomeGig(@RequestBody BecomeGigRequestDTO dto){
+        gigService.becomeGig(dto);
+        return ResponseEntity.status(HttpStatus.CREATED).build();
     }
 
     @PreAuthorize("hasRole('GIG')")
-    @PostMapping("/add-skills")
-    public ResponseEntity<String> addSkills(@RequestBody AddSkillsRequestDTO dto){
-        return ResponseEntity.ok(gigService.addSkills(dto.getSkillsId()));
+    @PatchMapping("/add-skills")
+    public ResponseEntity<?> addSkills(@RequestBody AddSkillsRequestDTO dto){
+        gigService.addSkills(dto.getSkillsId());
+        return ResponseEntity.noContent().build();
     }
 
     @PreAuthorize("hasRole('GIG')")
-    @PostMapping("/apply-job")
-    public ResponseEntity<String> applyForJob(@RequestBody JobApplicationRequestDTO dto){
-        return ResponseEntity.ok(gigService.applyForJob(dto));
+    @PostMapping("/proposal")
+    public ResponseEntity<?> applyForJob(@RequestBody JobApplicationRequestDTO dto){
+        gigService.applyForJob(dto);
+        return ResponseEntity.status(HttpStatus.CREATED).build();
     }
 
     @PreAuthorize("hasRole('GIG')")
-    @PutMapping("/update-job-application/{jobApplicationId}")
-    public ResponseEntity<String> updateJobApplication(@PathVariable Long jobApplicationId , @RequestBody UpdateJobApplicationRequestDTO dto){
-        return ResponseEntity.ok(gigService.updateJobApplication(jobApplicationId,dto));
+    @PatchMapping("/proposal/{jobApplicationId}")
+    public ResponseEntity<?> updateJobApplication(@PathVariable Long jobApplicationId , @RequestBody UpdateJobApplicationRequestDTO dto){
+        gigService.updateJobApplication(jobApplicationId,dto);
+        return ResponseEntity.noContent().build();
     }
 
     @PreAuthorize("hasRole('GIG')")
-    @PostMapping("/withdraw-job-application/{jobApplicationId}")
-    public ResponseEntity<String> withdrawJobByJobApplicationId(@PathVariable Long jobApplicationId){
-        return ResponseEntity.ok(gigService.withdrawJobApplicationByJobApplicationId(jobApplicationId));
+    @PatchMapping("/withdraw-proposal/{jobApplicationId}")
+    public ResponseEntity<?> withdrawJobByJobApplicationId(@PathVariable Long jobApplicationId){
+        gigService.withdrawJobApplicationByJobApplicationId(jobApplicationId);
+        return ResponseEntity.noContent().build();
     }
 
     @PreAuthorize("hasRole('GIG')")
-    @GetMapping("/get-all-job-application")
+    @GetMapping("/proposals ")
     public ResponseEntity<List<JobApplicationSortingAndFilteringResponseDTO>> getAllJobApplication(@RequestBody JobApplicationFilterAndSortingRequestDTO dto,
                                                                                                    @RequestParam(required = false,defaultValue = "10") int pageSize,
                                                                                                    @RequestParam(required = false,defaultValue = "1") int pageNumber){

@@ -26,6 +26,10 @@ public class GIG {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(nullable = false)
+    @NotBlank(message = "Title is must required..")
+    private String title;
+
     //    User mapping
     @OneToOne
     @JoinColumn(name = "user_id", nullable = false, unique = true)
@@ -39,7 +43,7 @@ public class GIG {
     //    Job Category which types of skill GIG have
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private JobCategory title;
+    private JobCategory jobCategory;
 
     //    GIG description
     @Column(nullable = false)

@@ -3,6 +3,10 @@ package org.riteshingle.campusgig.Service;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.riteshingle.campusgig.Enum.ContractStatus;
+import org.riteshingle.campusgig.Exception.ForbiddenException;
+import org.riteshingle.campusgig.Exception.InvalidStatusException;
+import org.riteshingle.campusgig.Exception.ResourceNotFoundException;
+import org.riteshingle.campusgig.Exception.UnauthorizedException;
 import org.riteshingle.campusgig.Model.Contract;
 import org.riteshingle.campusgig.Model.Conversation;
 import org.riteshingle.campusgig.Model.Message;
@@ -38,30 +42,30 @@ public class ChatService {
         log.info("Principal = {}", principal);
 
 //        Get Current Logged-in user
-        if(principal == null) throw new RuntimeException("User is not authenticated");
+        if(principal == null) throw new UnauthorizedException("User is not authenticated");
 
         String email = principal.getName();
 
-        UserEntity currentProfile = userEntityRepository.findByEmail(email).orElseThrow(() ->new RuntimeException("User not found"));
+        UserEntity currentProfile = userEntityRepository.findByEmail(email).orElseThrow(() ->new ResourceNotFoundException("User not found"));
 
 //        Find conversation
         Conversation conversation = conversationRepository.findById(conversationId)
-                .orElseThrow(() -> new RuntimeException("Conversation not found ..."));
+                .orElseThrow(() -> new ResourceNotFoundException("Conversation not found ..."));
 
 //        Find Contract
         Contract contract = conversation.getContract();
 
         if (contract == null)
-            throw new RuntimeException("Conversation is not linked with contract");
+            throw new ResourceNotFoundException("Conversation is not linked with contract");
 
 //        Check contract is authorized
-        if (contract.getContractStatus() != ContractStatus.ACTIVE)
-            throw new RuntimeException("Chat is available only for active contract");
+        if (contract.getContractStatus() == ContractStatus.WITHDRAWN || contract.getContractStatus() == ContractStatus.CANCEL)
+            throw new InvalidStatusException("Chat is available only for active contract");
 
         boolean isClient = contract.getClient().getId().equals(currentProfile.getId());
         boolean isGig = currentProfile.getGig() != null && contract.getGig().getId().equals(currentProfile.getGig().getId());
 
-        if (!isClient && !isGig) throw new RuntimeException("You are not a participant of this conversation");
+        if (!isClient && !isGig) throw new ForbiddenException("You are not a participant of this conversation");
 
         Message message = Message.builder()
                 .message(sendMessageRequestDTO.message())
@@ -87,17 +91,17 @@ public class ChatService {
     @Transactional
     public List<MessageResponse> getMessage(Long conversationId, UserEntity currentProfile) {
         Conversation conversation = conversationRepository.findById(conversationId)
-                .orElseThrow(() -> new RuntimeException("Conversation not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Conversation not found"));
 
         Contract contract = conversation.getContract();
 
-        if (contract == null) throw new RuntimeException("Contract not found");
+        if (contract == null) throw new ResourceNotFoundException("Contract not found");
 
         boolean isClient = contract.getClient().getId().equals(currentProfile.getId());
         boolean isGig = currentProfile.getGig() != null && contract.getGig().getId().equals(currentProfile.getGig().getId());
 
         if (!isClient && !isGig)
-            throw new RuntimeException("You are not a participant of this conversation");
+            throw new ForbiddenException("You are not a participant of this conversation");
 
         return messageRepository.findByConversationIdOrderBySentAtAsc(conversationId).stream()
                 .map(message -> new MessageResponse(

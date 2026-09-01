@@ -9,11 +9,10 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
+import org.riteshingle.campusgig.Enum.ActionInitiatedBy;
 import org.riteshingle.campusgig.Enum.ReportReason;
 import org.riteshingle.campusgig.Enum.ReportStatus;
-import org.riteshingle.campusgig.Enum.ReportedBy;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Data
@@ -58,7 +57,10 @@ public class Report {
 
     @Column(nullable = false)
     @Enumerated(EnumType.STRING)
-    private ReportedBy reportedBy;
+    private ActionInitiatedBy actionInitiatedBy;
+
+    @Size(min = 10,max = 1000,message = "Admin must be between 10 to 1000 characters..")
+    private String adminRemark;
 
     @CreationTimestamp
     @Column(nullable = false,updatable = false)
@@ -67,5 +69,7 @@ public class Report {
     @UpdateTimestamp
     @Column(nullable = false)
     private LocalDateTime updatedAt;
+
+    private LocalDateTime resolveAt;
 
 }

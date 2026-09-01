@@ -4,31 +4,35 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import lombok.RequiredArgsConstructor;
+import org.riteshingle.campusgig.Enum.Roles;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
 import java.util.Date;
+import java.util.Set;
 
 @Component
 @RequiredArgsConstructor
 public class JwtUtils {
     private String secreteKey = "jnddsksbvsbvvsshgjhcmvkjsfkjjssggjfggjfjhj  fgffjfhcfgkjlkbjhjgfguyfysdvcjhsgfgsjchsvjbb nslkshgffsndlkffsvjbjsbnsj";
 
-    public SecretKey getKey(){
+    public SecretKey getKey() {
         return Keys.hmacShaKeyFor(secreteKey.getBytes());
     }
 
-    public String generateToken(String email, Date expiry){
+    public String generateToken(String email, Date expiry, Set<Roles> roles) {
+        String role = roles.iterator().next().name();
         return Jwts.builder()
                 .subject(email)
                 .signWith(getKey())
+                .claim("role", role)
                 .issuedAt(new Date())
                 .expiration(expiry)
                 .compact();
     }
 
-    public Claims extractAllClaims(String token){
+    public Claims extractAllClaims(String token) {
         return Jwts.parser()
                 .verifyWith(getKey())
                 .build()
@@ -36,17 +40,21 @@ public class JwtUtils {
                 .getPayload();
     }
 
-    public String extractEmail(String token){
+    public String extractEmail(String token) {
         return extractAllClaims(token).getSubject();
     }
 
-    public Boolean isExpire(String token){
+    public Boolean isExpire(String token) {
         return extractAllClaims(token).getExpiration().before(new Date());
     }
 
-    public Boolean validateToken(String token, UserDetails userDetails){
+    public Boolean validateToken(String token, UserDetails userDetails) {
         String email = extractEmail(token);
-        return (email.equals(userDetails.getUsername()) && ! isExpire(token));
+        return (email.equals(userDetails.getUsername()) && !isExpire(token));
+    }
+
+    public String extractRole(String token) {
+        return extractAllClaims(token).get("role", String.class);
     }
 
 }

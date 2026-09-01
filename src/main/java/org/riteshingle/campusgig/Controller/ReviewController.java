@@ -8,6 +8,7 @@ import org.riteshingle.campusgig.Service.ReviewService;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -24,7 +25,7 @@ public class ReviewController {
     @PostMapping("/review/{contractId}")
     public ResponseEntity<?> createReview(@PathVariable Long contractId,@Valid @RequestBody CreateReviewRequest request) {
         reviewService.postReview(contractId,request);
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.status(HttpStatus.CREATED).build();
     }
 
     @PreAuthorize("hasRole('CLIENT') or hasRole('GIG')")

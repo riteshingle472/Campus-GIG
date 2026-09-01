@@ -14,14 +14,13 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 public class JobResponseDTO {
+    private Long id;
     private String title;
     private String description;
     private LocalDate deadline;
     private BigDecimal budget;
     private String category;
-    private String workMode;
     private String jobStatus;
     private String experience;
     private LocalDateTime publishAt;
-
 }

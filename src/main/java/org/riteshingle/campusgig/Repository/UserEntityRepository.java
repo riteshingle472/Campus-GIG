@@ -55,4 +55,7 @@ public interface UserEntityRepository extends JpaRepository<UserEntity, Long> {
             @Param("fromDate") LocalDateTime fromDate,
             @Param("toDate") LocalDateTime toDate
     );
+
+    boolean existsByEmail(String to);
+
 }

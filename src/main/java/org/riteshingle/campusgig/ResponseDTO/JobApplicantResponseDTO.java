@@ -7,6 +7,7 @@ import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Data
 @AllArgsConstructor
@@ -17,6 +18,6 @@ public class JobApplicantResponseDTO {
     private String jobApplicationStatus;
     private BigDecimal bidAmount;
     private LocalDate deliveryDate;
-    private LocalDate applyAt;
+    private LocalDateTime applyAt;
     private GigResponseDTO gigResponseDTO;
 }

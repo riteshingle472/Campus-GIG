@@ -1,6 +1,6 @@
 package org.riteshingle.campusgig.Enum;
 
-public enum ReportedBy {
+public enum ActionInitiatedBy  {
     CLIENT,
     GIG
 }

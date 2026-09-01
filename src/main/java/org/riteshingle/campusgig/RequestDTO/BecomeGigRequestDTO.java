@@ -8,6 +8,7 @@ import java.util.List;
 @Data
 public class BecomeGigRequestDTO {
     private String title;
+    private String jobCategory;
     private String availabilityStatus;
     private String description;
     private String college;

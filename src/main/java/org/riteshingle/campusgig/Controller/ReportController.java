@@ -4,6 +4,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.riteshingle.campusgig.RequestDTO.ReportRequestDTO;
 import org.riteshingle.campusgig.Service.ReportService;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -21,6 +22,6 @@ public class ReportController {
     @PostMapping("/report")
     public ResponseEntity<?> report(@Valid @RequestBody ReportRequestDTO dto){
         reportService.report(dto);
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.status(HttpStatus.CREATED).build();
     }
 }

@@ -8,6 +8,8 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
+import org.riteshingle.campusgig.Enum.ActionInitiatedBy;
+import org.riteshingle.campusgig.Enum.ContractCancelReason;
 import org.riteshingle.campusgig.Enum.ContractStatus;
 import org.riteshingle.campusgig.Enum.ProgressStatus;
 
@@ -21,7 +23,7 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @NoArgsConstructor
 @Table(name = "tbl_contract")
-public class Contract {
+public class    Contract {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -51,8 +53,16 @@ public class Contract {
     private JobApplication jobApplication;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
     private ContractStatus contractStatus;
+
+    @Enumerated(EnumType.STRING)
+    private ContractCancelReason cancelReason;
+
+    private String cancellationRemark;
+    private LocalDateTime cancelledAt;
+
+    @Enumerated(EnumType.STRING)
+    private ActionInitiatedBy actionInitiatedBy;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)

@@ -37,6 +37,8 @@ public class Config {
                 .authorizeHttpRequests(req -> req
                         .requestMatchers("/auth/test").authenticated()
                         .requestMatchers("/ws/**").permitAll()
+                        .requestMatchers("/api/admin/login").permitAll()
+                        .requestMatchers("/api/admin/register").permitAll()
                         .requestMatchers("/auth/**").permitAll()
                         .anyRequest().authenticated()
                 )

@@ -21,5 +21,6 @@ public enum JobCategory {
     TRANSLATION,
     FRONTEND_DEVELOPMENT,
     PHOTOGRAPHY,
-    OTHER
+    OTHER,
+    DATA_SCIENCE
 }

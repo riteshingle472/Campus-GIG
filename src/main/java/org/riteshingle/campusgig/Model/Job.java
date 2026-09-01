@@ -62,7 +62,7 @@ public class Job {
 
     @ManyToOne
     @JoinColumn(name = "client_id")
-    private UserEntity user;
+    private UserEntity client;
 
     @CreationTimestamp
     @Column(updatable = false,nullable = false)

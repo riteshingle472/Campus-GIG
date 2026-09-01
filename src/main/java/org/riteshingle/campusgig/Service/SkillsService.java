@@ -1,13 +1,13 @@
 package org.riteshingle.campusgig.Service;
 
 import lombok.RequiredArgsConstructor;
-import org.hibernate.annotations.processing.Find;
+import org.riteshingle.campusgig.Exception.ConflictException;
+import org.riteshingle.campusgig.Exception.ResourceNotFoundException;
 import org.riteshingle.campusgig.Model.Skills;
 import org.riteshingle.campusgig.Repository.SkillsRepository;
 import org.riteshingle.campusgig.ResponseDTO.SkillResponseDTO;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
-import org.springframework.web.bind.annotation.RequestParam;
 
 import java.util.List;
 
@@ -27,7 +27,7 @@ public class SkillsService {
 //    Skill by ID
     public SkillResponseDTO getSkill(Long id){
 //        Find skill by ID and return in skill response
-        Skills skills = skillsRepository.findById(id).orElseThrow(() -> new RuntimeException("Skill not found with id : " + id));
+        Skills skills = skillsRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Skill not found with id : " + id));
         return skillResponseDTO(skills);
     }
 
@@ -36,7 +36,7 @@ public class SkillsService {
     public void addSkill(String skill){
 //        Check Skill is already exists ?
         Boolean exists = skillsRepository.existsBySkill(skill);
-        if(exists) throw new RuntimeException("skill already Exist");
+        if(exists) throw new ConflictException("skill already Exist");
 //        Save in DB after capatalize first character
         skill = skill.substring(0, 1).toUpperCase() + skill.substring(1);
         Skills skills = Skills.builder().skill(skill).build();

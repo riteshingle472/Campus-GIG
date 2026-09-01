@@ -11,7 +11,6 @@ public class JobRequestDTO {
     private String title;
     private String description;
     private String experienceLevel;
-    private String workMode;
     private String jobCategory;
     private LocalDate deadline;
     private BigDecimal budget;

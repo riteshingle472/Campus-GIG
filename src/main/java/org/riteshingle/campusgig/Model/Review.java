@@ -32,7 +32,7 @@ public class Review {
     private Long id;
 
     @NotNull(message = "Rating is required")
-    @Min(value = 1, message = "Rating must be at least 1")
+    @Min(value = 0, message = "Rating must be at least 1")
     @Max(value = 5, message = "Rating must not exceed 5")
     @Column(nullable = false)
     private Integer rating;
