@@ -19,7 +19,7 @@ import java.util.Optional;
 
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/job")
+@RequestMapping("/api/job")
 public class JobController {
     private final JobService jobService;
     private final GigService gigService;

@@ -14,7 +14,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/gig")
+@RequestMapping("/api/gig")
 @RequiredArgsConstructor
 public class GigController {
     private final GigService gigService;

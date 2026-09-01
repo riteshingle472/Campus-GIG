@@ -32,7 +32,7 @@ public class Config {
     private final RateLimitFilter rateLimitFilter;
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http){
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) {
         return http.csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(req -> req
                         .requestMatchers("/auth/test").authenticated()
@@ -40,11 +40,12 @@ public class Config {
                         .requestMatchers("/api/admin/login").permitAll()
                         .requestMatchers("/api/admin/register").permitAll()
                         .requestMatchers("/auth/**").permitAll()
+                        .requestMatchers("/v3/api-docs","/v3/api-docs/**","/swagger-ui.html","/swagger-ui/**").permitAll()
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .addFilterBefore(jwtRequestFilter, UsernamePasswordAuthenticationFilter.class)
-                .addFilterBefore(rateLimitFilter,JwtRequestFilter.class)
+                .addFilterBefore(rateLimitFilter, JwtRequestFilter.class)
                 .build();
     }
 
@@ -72,4 +73,6 @@ public class Config {
 
         return corsConfigurationSource;
     }
+
+
 }
