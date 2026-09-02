@@ -19,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.ObjectMapper;
 
 import java.time.Duration;
+import java.time.LocalDate;
 import java.util.*;
 
 @Service
@@ -49,8 +50,11 @@ public class JobService {
 //        Create Job Entity
         Job job = createJobEntity(dto);
 
-//        Check Experience , Work mode and Job status is valid or not ?
+        if(dto.getDeadline().isBefore(LocalDate.now())){
+            throw new BadRequestException("Date does not be in past...");
+        }
 
+//        Check Experience , Work mode and Job status is valid or not ?
         job.setClient(client);
 //        job.setJobStatus(JobStatus.OPEN);
 

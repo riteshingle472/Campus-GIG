@@ -99,7 +99,7 @@ public class GigService {
         }
 
         try {
-            jobCategory = JobCategory.valueOf(dto.getTitle().trim().toUpperCase());
+            jobCategory = JobCategory.valueOf(dto.getJobCategory().trim().toUpperCase());
         }catch (IllegalArgumentException e){
             throw new InvalidStatusException("Invalid Availability Status..");
         }

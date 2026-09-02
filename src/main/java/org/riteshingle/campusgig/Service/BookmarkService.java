@@ -14,12 +14,14 @@ import org.riteshingle.campusgig.Repository.JobRepository;
 import org.riteshingle.campusgig.Repository.SaveJobRepository;
 import org.riteshingle.campusgig.ResponseDTO.BookmarkResponseDTO;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.List;
 
 @Service
 @RequiredArgsConstructor
+@Transactional
 public class BookmarkService {
     private final SaveJobRepository saveJobRepository;
     private final AuthService authService;
