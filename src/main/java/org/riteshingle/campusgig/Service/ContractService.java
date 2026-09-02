@@ -10,6 +10,7 @@ import org.riteshingle.campusgig.Model.*;
 import org.riteshingle.campusgig.Repository.ContractRepository;
 import org.riteshingle.campusgig.RequestDTO.ContractCancelOrWithdrawnRequestDTO;
 import org.riteshingle.campusgig.ResponseDTO.ContractDetailsResponseDTO;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -60,14 +61,14 @@ public class ContractService {
         contractRepository.save(contract);
     }
 
-    public List<ContractDetailsResponseDTO> getContracts(){
+    public List<ContractDetailsResponseDTO> getContracts(Pageable pageable){
         UserEntity currentProfile = authService.getCurrentProfile();
 
         if(!currentProfile.getIsVerified()){
             throw new ForbiddenException("User is not verified...");
         }
 
-        List<Contract> contracts = contractRepository.findMyContracts(currentProfile);
+        List<Contract> contracts = contractRepository.findMyContracts(currentProfile,pageable);
         return contracts.stream().map(this::contractDetailsResponseDTO).toList();
     }
 

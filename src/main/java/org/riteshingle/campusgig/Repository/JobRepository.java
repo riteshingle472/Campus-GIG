@@ -19,7 +19,7 @@ import java.util.List;
 public interface JobRepository extends JpaRepository<Job, Long>, JpaSpecificationExecutor<Job> {
 
     @Query("SELECT j FROM Job j where j.client.id = :clientId and j.jobStatus = :status")
-    List<Job> findJobsByClientIdAndStatus(@Param("clientId") Long id, @Param("status") JobStatus status);
+    List<Job> findJobsByClientIdAndStatus(@Param("clientId") Long id, @Param("status") JobStatus status,Pageable pageable);
 
     @Query("SELECT COUNT(j) FROM Job j WHERE  j.publishAt >= :fromDate AND j.publishAt <= :toDate AND j.jobStatus = :status")
     Long findTotalJobByStatus(@Param("status") JobStatus jobStatus,@Param("fromDate")LocalDateTime from ,@Param("toDate")LocalDateTime to);

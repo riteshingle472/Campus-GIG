@@ -4,6 +4,8 @@ import org.riteshingle.campusgig.Enum.JobApplicationStatus;
 import org.riteshingle.campusgig.Model.GIG;
 import org.riteshingle.campusgig.Model.Job;
 import org.riteshingle.campusgig.Model.JobApplication;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
@@ -19,6 +21,7 @@ import java.util.Optional;
 public interface JobApplicationRepository extends JpaRepository<JobApplication, Long>, JpaSpecificationExecutor<JobApplication> {
     Optional<JobApplication> findByGigAndJobAndJobApplicationStatus(GIG gig, Job job, JobApplicationStatus status);
 
+    Page<JobApplication> findByJob(Job job, Pageable pageable);
     List<JobApplication> findByJob(Job job);
 
     Optional<JobApplication> findByJobIdAndGigId(Long jobId, Long gigId);

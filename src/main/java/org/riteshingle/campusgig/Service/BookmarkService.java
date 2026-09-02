@@ -13,6 +13,7 @@ import org.riteshingle.campusgig.Model.UserEntity;
 import org.riteshingle.campusgig.Repository.JobRepository;
 import org.riteshingle.campusgig.Repository.SaveJobRepository;
 import org.riteshingle.campusgig.ResponseDTO.BookmarkResponseDTO;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -71,7 +72,7 @@ public class BookmarkService {
         saveJobRepository.delete(bookmark);
     }
 
-    public List<BookmarkResponseDTO> bookmarkJobs() {
+    public List<BookmarkResponseDTO> bookmarkJobs(Pageable pageable) {
         UserEntity currentProfile = authService.getCurrentProfile();
         Roles roles = currentProfile.getRoles().iterator().next();
         GIG gig = currentProfile.getGig();
@@ -82,7 +83,7 @@ public class BookmarkService {
         if (!currentProfile.getIsVerified())
             throw new ForbiddenException("GIG is not Verified");
 
-        List<Bookmark> byGigId = saveJobRepository.findByGigId(gig.getId());
+        List<Bookmark> byGigId = saveJobRepository.findByGigId(gig.getId(),pageable).getContent();
         return byGigId.stream().map(this::responseDTO).toList();
     }
 

@@ -117,15 +117,21 @@ public class JobController {
     }
 
     @PreAuthorize("hasRole('CLIENT')")
-    @GetMapping("/proposals/{jobId}")
-    public ResponseEntity<List<JobApplicantResponseDTO>> getAllJobApplicant(@PathVariable Long jobId){
-        return ResponseEntity.ok(jobService.getAllJobApplicant(jobId));
+    @GetMapping("/applicants/{jobId}")
+    public ResponseEntity<List<JobApplicantResponseDTO>> getAllJobApplicants(@PathVariable Long jobId,@RequestParam(required = false,defaultValue = "1")int page,
+                                                                            @RequestParam(required = false,defaultValue = "10")int size){
+        Pageable pageable = PageRequest.of(page-1, size);
+        return ResponseEntity.ok(jobService.getAllJobApplicants(jobId,pageable));
     }
 
     @PreAuthorize("hasRole('CLIENT')")
     @GetMapping("/my-jobs")
-    public ResponseEntity<List<JobResponseDTO>> getJobsPostByMe(@RequestParam String status){
-        return ResponseEntity.ok(jobService.getAllJobsPostByMe(status));
+    public ResponseEntity<List<JobResponseDTO>> getJobsPostByMe(@RequestParam String status,@RequestParam(required = false,defaultValue = "1")int page,
+                                                                @RequestParam(required = false,defaultValue = "10")int size,
+                                                                @RequestParam(required = false,defaultValue = "ASCE")String direction,
+                                                                @RequestParam(required = false,defaultValue = "publishAt") String field){
+        Pageable pageable = PageRequest.of(page-1, size,Sort.Direction.fromString(direction),field);
+        return ResponseEntity.ok(jobService.getAllJobsPostByMe(status,pageable));
     }
 
     @PreAuthorize("hasRole('GIG')")

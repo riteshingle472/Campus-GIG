@@ -132,7 +132,7 @@ public class JobService {
         }
     }
 
-    //    For -> client
+//    For -> client
 //    Get Draft
     public JobRequestDTO getDraft(String draftId) {
 //        get current logged-in user profile
@@ -159,7 +159,7 @@ public class JobService {
         }
     }
 
-    //    For -> client
+//    For -> client
 //    Remove Draft
     public void removeDraft(String draftId) {
 //        Get current logged-in user profile
@@ -182,7 +182,7 @@ public class JobService {
         }
     }
 
-    //    For -> client
+//    For -> client
 //    Delete Job
 //    Soft delete
     public void deleteJob(Long id) {
@@ -204,7 +204,7 @@ public class JobService {
         } else throw new ForbiddenException("You are not authorized to delete this job");
     }
 
-    //    For -> Client
+//    For -> Client
 //    Get All Draft
     public List<JobRequestDTO> getAllDraft() {
 //        Get Current logged-in user profile
@@ -321,9 +321,9 @@ public class JobService {
         }
     }
 
-    //    For -> Client
+//    For -> Client
 //    Get All Job Applicant
-    public List<JobApplicantResponseDTO> getAllJobApplicant(Long jobId) {
+    public List<JobApplicantResponseDTO> getAllJobApplicants(Long jobId,Pageable pageable) {
         UserEntity currentProfile = authService.getCurrentProfile();
         Job job = jobRepository.findById(jobId).orElseThrow(() -> new ResourceNotFoundException("Job not found with id: " + jobId));
 
@@ -335,13 +335,13 @@ public class JobService {
             throw new UnauthorizedException("You are not authorized to modify this job");
         }
 
-        List<JobApplication> jobApplicant = jobApplicationRepository.findByJob(job);
+        List<JobApplication> jobApplicant = jobApplicationRepository.findByJob(job,pageable).getContent();
         return jobApplicant.stream().map(this::jobApplicantResponse).toList();
     }
 
 //    For -> Client
 //    Get all job posted by client
-    public List<JobResponseDTO> getAllJobsPostByMe(String status) {
+    public List<JobResponseDTO> getAllJobsPostByMe(String status,Pageable pageable) {
         UserEntity client = authService.getCurrentProfile();
         JobStatus jobStatus;
 
@@ -351,7 +351,7 @@ public class JobService {
             throw new InvalidStatusException("Invalid Job Status : "+status);
         }
 
-        List<Job> jobs = jobRepository.findJobsByClientIdAndStatus(client.getId(),jobStatus);
+        List<Job> jobs = jobRepository.findJobsByClientIdAndStatus(client.getId(),jobStatus,pageable);
         return jobs.stream().map(this::responseDTO).toList();
     }
 

@@ -6,6 +6,8 @@ import org.apache.coyote.Response;
 import org.riteshingle.campusgig.RequestDTO.ContractCancelOrWithdrawnRequestDTO;
 import org.riteshingle.campusgig.ResponseDTO.ContractDetailsResponseDTO;
 import org.riteshingle.campusgig.Service.ContractService;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -20,8 +22,10 @@ public class ContractController {
 
     @PreAuthorize("hasRole('CLIENT') or hasRole('GIG')")
     @GetMapping("/contracts")
-    public ResponseEntity<List<ContractDetailsResponseDTO>> getContracts(){
-        return ResponseEntity.ok(contractService.getContracts());
+    public ResponseEntity<List<ContractDetailsResponseDTO>> getContracts(@RequestParam(required = false,defaultValue = "1")int page,
+                                                                         @RequestParam(required = false,defaultValue = "10")int size){
+        Pageable pageable = PageRequest.of(page-1, size);
+        return ResponseEntity.ok(contractService.getContracts(pageable));
     }
 
     @PreAuthorize("hasRole('CLIENT') or hasRole('GIG')")

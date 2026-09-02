@@ -3,6 +3,8 @@ package org.riteshingle.campusgig.Controller;
 import lombok.RequiredArgsConstructor;
 import org.riteshingle.campusgig.ResponseDTO.BookmarkResponseDTO;
 import org.riteshingle.campusgig.Service.BookmarkService;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -32,7 +34,9 @@ public class BookmarkController {
 
     @PreAuthorize("hasRole('GIG')")
     @GetMapping("/bookmarks")
-    public ResponseEntity<List<BookmarkResponseDTO>> getSaveJobs(){
-        return ResponseEntity.ok(bookmarkService.bookmarkJobs());
+    public ResponseEntity<List<BookmarkResponseDTO>> getSaveJobs(@RequestParam(required = false,defaultValue = "1")int page,
+                                                                 @RequestParam(required = false,defaultValue = "10")int size){
+        Pageable pageable = PageRequest.of(page-1, size);
+        return ResponseEntity.ok(bookmarkService.bookmarkJobs(pageable));
     }
 }
