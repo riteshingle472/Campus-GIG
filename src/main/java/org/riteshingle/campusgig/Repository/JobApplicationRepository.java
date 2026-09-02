@@ -19,17 +19,29 @@ import java.util.Optional;
 
 @Repository
 public interface JobApplicationRepository extends JpaRepository<JobApplication, Long>, JpaSpecificationExecutor<JobApplication> {
-    Optional<JobApplication> findByGigAndJobAndJobApplicationStatus(GIG gig, Job job, JobApplicationStatus status);
+    @Query(value = """
+            SELECT j
+            FROM job_application as j
+            WHERE j.gig_id = :gigId
+              AND j.job_id = :jobId
+              AND j.job_application_status = :status
+            """)
+    Optional<JobApplication> findByGigAndJobAndJobApplicationStatus(
+            @Param("gigId") Long gigId,
+            @Param("jobId") Long jobId,
+            @Param("status") String status
+    );
 
     Page<JobApplication> findByJob(Job job, Pageable pageable);
+
     List<JobApplication> findByJob(Job job);
 
     Optional<JobApplication> findByJobIdAndGigId(Long jobId, Long gigId);
 
     boolean existsByJobIdAndGigId(Long jobId, Long gigId);
 
-    @Query("SELECT COUNT(j) FROM JobApplication j WHERE j.createdAt >= :fromDate AND j.createdAt <= :toDate AND j.jobApplicationStatus = :status")
-    Long findTotalJobApplicationByStatus(@Param("status") JobApplicationStatus jobApplicationStatus,@Param("fromDate") LocalDateTime from,@Param("toDate") LocalDateTime to);
+    @Query("SELECT COUNT(j) FROM JobApplication j WHERE j.createdAt >= :fromDate AND j.createdAt <= :toDate AND :status == null OR j.jobApplicationStatus = :status")
+    Long findTotalJobApplicationByStatus(@Param("status") JobApplicationStatus jobApplicationStatus, @Param("fromDate") LocalDateTime from, @Param("toDate") LocalDateTime to);
 
     @Query("""
                 SELECT FUNCTION('DATE', a.createdAt), COUNT(a)

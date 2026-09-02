@@ -108,7 +108,7 @@ public class AdminController {
     public ResponseEntity<List<AdminJobApplicationListResponseDTO>> jobApplications(@RequestParam(required = false, defaultValue = "1") int pageNumber,
                                                                                     @RequestParam(required = false, defaultValue = "10") int pageSize,
                                                                                     @RequestParam(required = false, defaultValue = "ASC") String direction,
-                                                                                    @RequestParam(required = false, defaultValue = "createAt") String field) {
+                                                                                    @RequestParam(required = false, defaultValue = "createdAt") String field) {
         Pageable pageable = PageRequest.of(pageNumber - 1, pageSize, Sort.Direction.fromString(direction), field);
         return ResponseEntity.ok(adminService.jobApplications(pageable));
     }

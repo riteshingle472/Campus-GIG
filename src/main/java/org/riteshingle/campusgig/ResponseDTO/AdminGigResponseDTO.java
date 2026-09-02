@@ -15,7 +15,6 @@ import java.util.List;
 @AllArgsConstructor
 public class AdminGigResponseDTO {
     private Long id;
-    private String role;
     private String title;
     private String college;
     private Integer semester;

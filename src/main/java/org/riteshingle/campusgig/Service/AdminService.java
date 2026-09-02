@@ -68,8 +68,9 @@ public class AdminService {
 
     public Map<String, String> login(AdminAuthDTO dto, HttpServletResponse response) {
 //        Token Expiry
-        Date ACCESS_TOKEN_EXPIRY = new Date(System.currentTimeMillis() + (15 * 60 * 1000));
+//        Date ACCESS_TOKEN_EXPIRY = new Date(System.currentTimeMillis() + (15 * 60 * 1000));
         Date REFRESH_TOKEN_EXPIRY = new Date(System.currentTimeMillis() + (7 * 24 * 60 * 60 * 1000));
+        Date ACCESS_TOKEN_EXPIRY = new Date(System.currentTimeMillis() + (7 * 24 * 60 * 60 * 1000));
 
 //        Get a user by Email
         Admin admin = adminRepository.findByEmail(dto.getEmail()).orElseThrow(() -> new ResourceNotFoundException("User not found"));
@@ -164,12 +165,12 @@ public class AdminService {
             throw new InvalidStatusException("Invalid Contract Status : "+contractStatus);
         }
 
-        ActionInitiatedBy actionInitiatedBy;
-        try {
-            actionInitiatedBy = ActionInitiatedBy.valueOf(actionInitiated.trim().toUpperCase());
-        }catch (Exception e){
-            throw new InvalidStatusException("Invalid Report Status : "+actionInitiated);
-        }
+//        ActionInitiatedBy actionInitiatedBy;
+//        try {
+//            actionInitiatedBy = ActionInitiatedBy.valueOf(actionInitiated.trim().toUpperCase());
+//        }catch (Exception e){
+//            throw new InvalidStatusException("Invalid Report Status : "+actionInitiated);
+//        }
 
         Long totalClient = userEntityRepository.findTotalUserByStatus(Roles.CLIENT, startFrom, endTo);
         Long totalUSER = userEntityRepository.findTotalUserByStatus(Roles.USER, startFrom, endTo);
@@ -177,7 +178,7 @@ public class AdminService {
         Long totalJobApplication = jobApplicationRepository.findTotalJobApplicationByStatus(applicationStatus, startFrom, endTo);
         Long totalOpenJob = jobRepository.findTotalJobByStatus(status, startFrom, endTo);
         Long totalContract = contractRepository.findTotalContractByStatus(cs, startFrom, endTo);
-        Long totalReport = reportRepository.findTotalActionInitiatedBy(actionInitiatedBy, startFrom, endTo);
+//        Long totalReport = reportRepository.findTotalActionInitiatedBy(actionInitiatedBy, startFrom, endTo);
 
         return AdminDashboardCardStatsResponseDTO.builder()
                 .totalJob(totalOpenJob)
@@ -186,7 +187,7 @@ public class AdminService {
                 .totalContract(totalContract)
                 .totalJobApplication(totalJobApplication)
                 .totalUser(totalUSER)
-                .totalReport(totalReport)
+//                .totalReport(totalReport)
                 .build();
     }
 
@@ -419,7 +420,7 @@ public class AdminService {
                 .availabilityStatus(gig.getAvailabilityStatus())
                 .description(gig.getDescription())
                 .createdAt(gig.getCreatedAt())
-                .category(gig.getTitle())
+                .category(gig.getJobCategory().name())
                 .owner(owner)
                 .semester(gig.getSemester())
                 .department(gig.getDepartment())
@@ -453,6 +454,7 @@ public class AdminService {
                 .jobStatus(job.getJobStatus().name())
                 .publishAt(job.getPublishAt())
                 .budget(job.getBudget())
+                .clientResponseDTO(userAndClientResponseDTO(job.getClient()))
                 .category(job.getCategory().name())
                 .title(job.getTitle())
                 .build();
@@ -466,12 +468,13 @@ public class AdminService {
                 .coverLetter(jobApplication.getCoverLetter())
                 .proposedAmount(jobApplication.getBidAmount())
                 .jobResponseDTO(jobResponseDTO(jobApplication.getJob()))
-                .gigResponseDTO(gigResponseDTO(jobApplication.getGig()))
+                .gigResponseDTO(adminGigResponseDTO(jobApplication.getGig()))
                 .build();
     }
 
     private GigResponseDTO gigResponseDTO(GIG gig) {
         return GigResponseDTO.builder()
+                .id(gig.getId())
                 .gigFirstName(gig.getUser().getFirstName())
                 .gigLastName(gig.getUser().getLastName())
                 .gigEmail(gig.getUser().getEmail())

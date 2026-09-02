@@ -15,7 +15,7 @@ import java.time.LocalDateTime;
 public class AdminJobApplicationResponseDTO {
     private Long id;
     private AdminJobResponseDTO jobResponseDTO;
-    private GigResponseDTO gigResponseDTO;
+    private AdminGigResponseDTO gigResponseDTO;
     private BigDecimal proposedAmount;
     private String coverLetter;
     private String status;

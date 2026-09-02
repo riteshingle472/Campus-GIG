@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 import org.riteshingle.campusgig.Enum.Roles;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import javax.crypto.SecretKey;
 import java.util.Date;
@@ -14,6 +15,7 @@ import java.util.Set;
 
 @Component
 @RequiredArgsConstructor
+@Transactional
 public class JwtUtils {
     private String secreteKey = "jnddsksbvsbvvsshgjhcmvkjsfkjjssggjfggjfjhj  fgffjfhcfgkjlkbjhjgfguyfysdvcjhsgfgsjchsvjbb nslkshgffsndlkffsvjbjsbnsj";
 

@@ -162,7 +162,7 @@ public class GigService {
             throw new BadRequestException("Delivery date cannot be in the past");
 
 //        boolean existsByJobIdAndGigId = jobApplicationRepository.existsByJobIdAndGigId(jobId, gig.getId());
-        Optional<JobApplication> jobApplicationByJobIdAndGigIdAndJobApplicationStatus = jobApplicationRepository.findByGigAndJobAndJobApplicationStatus(gig, job, JobApplicationStatus.APPLIED);
+        Optional<JobApplication> jobApplicationByJobIdAndGigIdAndJobApplicationStatus = jobApplicationRepository.findByGigAndJobAndJobApplicationStatus(gig.getId(), job.getId(), JobApplicationStatus.APPLIED.name());
         JobApplication jobApplication = null;
 
         if(jobApplicationByJobIdAndGigIdAndJobApplicationStatus.isPresent()){
@@ -204,7 +204,7 @@ public class GigService {
         if(gig == null)
             throw new RuntimeException("Only Gig can Withdraw job..");
 
-        JobApplication jobApplication = jobApplicationRepository.findByGigAndJobAndJobApplicationStatus(gig,job,JobApplicationStatus.APPLIED)
+        JobApplication jobApplication = jobApplicationRepository.findByGigAndJobAndJobApplicationStatus(gig.getId(),job.getId(),JobApplicationStatus.APPLIED.name())
                 .orElseThrow(() -> new ResourceNotFoundException("Job Application not found by Job Id or gig ID.."));
 
         if (jobApplication.getGig() == null || !gig.getId().equals(jobApplication.getGig().getId()))

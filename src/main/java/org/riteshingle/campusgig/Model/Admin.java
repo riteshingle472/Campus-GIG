@@ -35,8 +35,8 @@ public class Admin {
     @ElementCollection(targetClass = Roles.class)
     @Enumerated(EnumType.STRING)
     @CollectionTable(
-            name = "user_roles",
-            joinColumns = @JoinColumn(name = "user_id")
+            name = "admin_roles",
+            joinColumns = @JoinColumn(name = "admin_id")
     )
     @Column(name = "role")
     private Set<Roles> roles;
