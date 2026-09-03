@@ -25,7 +25,7 @@ public class ContractController {
     @GetMapping("/contracts")
     public ResponseEntity<List<ContractDetailsResponseDTO>> getContracts(@RequestParam(required = false,defaultValue = "1")int page,
                                                                          @RequestParam(required = false,defaultValue = "10")int size,
-                                                                         @RequestParam(required = false,defaultValue = "ASCE")String direction,
+                                                                         @RequestParam(required = false,defaultValue = "ASC")String direction,
                                                                          @RequestParam(required = false,defaultValue = "createdAt")String field){
         Pageable pageable = PageRequest.of(page-1, size, Sort.Direction.fromString(direction),field);
         return ResponseEntity.ok(contractService.getContracts(pageable));

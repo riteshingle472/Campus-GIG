@@ -21,10 +21,10 @@ import java.util.Optional;
 public interface JobApplicationRepository extends JpaRepository<JobApplication, Long>, JpaSpecificationExecutor<JobApplication> {
     @Query(value = """
             SELECT j
-            FROM job_application as j
-            WHERE j.gig_id = :gigId
-              AND j.job_id = :jobId
-              AND j.job_application_status = :status
+            FROM JobApplication as j
+            WHERE j.gig.id = :gigId
+              AND j.job.id = :jobId
+              AND j.jobApplicationStatus = :status
             """)
     Optional<JobApplication> findByGigAndJobAndJobApplicationStatus(
             @Param("gigId") Long gigId,
@@ -40,7 +40,7 @@ public interface JobApplicationRepository extends JpaRepository<JobApplication, 
 
     boolean existsByJobIdAndGigId(Long jobId, Long gigId);
 
-    @Query("SELECT COUNT(j) FROM JobApplication j WHERE j.createdAt >= :fromDate AND j.createdAt <= :toDate AND :status == null OR j.jobApplicationStatus = :status")
+    @Query("SELECT COUNT(j) FROM JobApplication j WHERE j.createdAt >= :fromDate AND j.createdAt <= :toDate AND (:status IS NULL OR j.jobApplicationStatus = :status)")
     Long findTotalJobApplicationByStatus(@Param("status") JobApplicationStatus jobApplicationStatus, @Param("fromDate") LocalDateTime from, @Param("toDate") LocalDateTime to);
 
     @Query("""

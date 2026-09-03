@@ -19,6 +19,6 @@ public interface ContractRepository extends JpaRepository<Contract , Long> {
     @Query("SELECT c FROM Contract c WHERE c.client = :user OR c.gig.user = :user")
     List<Contract> findMyContracts(@Param("user") UserEntity user, Pageable pageable);
 
-    @Query("SELECT COUNT(c) FROM Contract c WHERE  c.createdAt >= :fromDate AND c.createdAt <= :toDate AND :status IS NULL OR c.contractStatus = :status")
+    @Query("SELECT COUNT(c) FROM Contract c WHERE  c.createdAt >= :fromDate AND c.createdAt <= :toDate AND (:status IS NULL OR c.contractStatus = :status)")
     Long findTotalContractByStatus(@Param("status") ContractStatus contractStatus ,@Param("fromDate")LocalDateTime from ,@Param("toDate")LocalDateTime to);
 }
