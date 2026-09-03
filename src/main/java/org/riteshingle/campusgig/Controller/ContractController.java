@@ -13,6 +13,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @RestController
@@ -26,9 +27,12 @@ public class ContractController {
     public ResponseEntity<List<ContractDetailsResponseDTO>> getContracts(@RequestParam(required = false,defaultValue = "1")int page,
                                                                          @RequestParam(required = false,defaultValue = "10")int size,
                                                                          @RequestParam(required = false,defaultValue = "ASC")String direction,
-                                                                         @RequestParam(required = false,defaultValue = "createdAt")String field){
+                                                                         @RequestParam(required = false,defaultValue = "createdAt")String field,
+                                                                         @RequestParam(required = false) String keyword,
+                                                                         @RequestParam(required = false)LocalDate from,
+                                                                         @RequestParam(required = false)LocalDate to){
         Pageable pageable = PageRequest.of(page-1, size, Sort.Direction.fromString(direction),field);
-        return ResponseEntity.ok(contractService.getContracts(pageable));
+        return ResponseEntity.ok(contractService.getContracts(pageable,keyword,from,to));
     }
 
     @PreAuthorize("hasRole('CLIENT') or hasRole('GIG')")

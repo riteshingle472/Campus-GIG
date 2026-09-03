@@ -162,23 +162,20 @@ public class GigService {
             throw new BadRequestException("Delivery date cannot be in the past");
 
 //        boolean existsByJobIdAndGigId = jobApplicationRepository.existsByJobIdAndGigId(jobId, gig.getId());
-        Optional<JobApplication> jobApplicationByJobIdAndGigIdAndJobApplicationStatus = jobApplicationRepository.findByGigAndJobAndJobApplicationStatus(gig.getId(), job.getId(), JobApplicationStatus.APPLIED.name());
-        JobApplication jobApplication = null;
+        Optional<JobApplication>existingApplication  = jobApplicationRepository.findByGigAndJobAndJobApplicationStatus(gig.getId(), job.getId(), JobApplicationStatus.APPLIED);
+        if (existingApplication.isPresent()) {
+            JobApplication application = existingApplication.get();
 
-        if(jobApplicationByJobIdAndGigIdAndJobApplicationStatus.isPresent()){
-            jobApplication = jobApplicationByJobIdAndGigIdAndJobApplicationStatus.get();
+            if (application.getJobApplicationStatus() == JobApplicationStatus.APPLIED)
+                throw new InvalidStatusException("You already applied for the job ..");
+
+            if (application.getJobApplicationStatus() == JobApplicationStatus.REJECTED ||
+                    application.getJobApplicationStatus() == JobApplicationStatus.SHORTLISTED ||
+                    application.getJobApplicationStatus() == JobApplicationStatus.ACCEPTED) {
+
+                throw new InvalidStatusException("You cannot apply for job because your job application is : " + application.getJobApplicationStatus());
+            }
         }
-
-       if(jobApplication != null){
-           if(jobApplication.getJobApplicationStatus().equals(JobApplicationStatus.APPLIED))
-               throw new InvalidStatusException("You already applied for the job ..");
-
-           if(jobApplication.getJobApplicationStatus().equals(JobApplicationStatus.REJECTED) ||
-                   jobApplication.getJobApplicationStatus().equals(JobApplicationStatus.SHORTLISTED) ||
-                   jobApplication.getJobApplicationStatus().equals(JobApplicationStatus.ACCEPTED)){
-               throw new InvalidStatusException("You cannot apply for job because your job application is : "+jobApplication.getJobApplicationStatus());
-           }
-       }
 
         JobApplication newJobApplication = JobApplication.builder()
                 .coverLetter(dto.getCoverLetter())
@@ -204,7 +201,7 @@ public class GigService {
         if(gig == null)
             throw new RuntimeException("Only Gig can Withdraw job..");
 
-        JobApplication jobApplication = jobApplicationRepository.findByGigAndJobAndJobApplicationStatus(gig.getId(),job.getId(),JobApplicationStatus.APPLIED.name())
+        JobApplication jobApplication = jobApplicationRepository.findByGigAndJobAndJobApplicationStatus(gig.getId(),job.getId(),JobApplicationStatus.APPLIED)
                 .orElseThrow(() -> new ResourceNotFoundException("Job Application not found by Job Id or gig ID.."));
 
         if (jobApplication.getGig() == null || !gig.getId().equals(jobApplication.getGig().getId()))

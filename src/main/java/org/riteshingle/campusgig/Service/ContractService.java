@@ -2,10 +2,7 @@ package org.riteshingle.campusgig.Service;
 
 import lombok.RequiredArgsConstructor;
 import org.riteshingle.campusgig.Enum.*;
-import org.riteshingle.campusgig.Exception.ForbiddenException;
-import org.riteshingle.campusgig.Exception.InvalidStatusException;
-import org.riteshingle.campusgig.Exception.ResourceNotFoundException;
-import org.riteshingle.campusgig.Exception.UnauthorizedException;
+import org.riteshingle.campusgig.Exception.*;
 import org.riteshingle.campusgig.Model.*;
 import org.riteshingle.campusgig.Repository.ContractRepository;
 import org.riteshingle.campusgig.RequestDTO.ContractCancelOrWithdrawnRequestDTO;
@@ -14,7 +11,9 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
 
 @Service
@@ -61,14 +60,28 @@ public class ContractService {
         contractRepository.save(contract);
     }
 
-    public List<ContractDetailsResponseDTO> getContracts(Pageable pageable){
+    public List<ContractDetailsResponseDTO> getContracts(Pageable pageable, String keyword, LocalDate from,LocalDate to){
         UserEntity currentProfile = authService.getCurrentProfile();
 
         if(!currentProfile.getIsVerified()){
             throw new ForbiddenException("User is not verified...");
         }
 
-        List<Contract> contracts = contractRepository.findMyContracts(currentProfile,pageable);
+        if (from != null && to != null && from.isAfter(to)) {
+            throw new BadRequestException("From date cannot be after to date");
+        }
+
+        if (to != null && to.isAfter(LocalDate.now())) {
+            throw new BadRequestException("To date cannot be in the future");
+        }
+
+        LocalDateTime startFrom = from == null ? LocalDate.now().atStartOfDay() : from.atStartOfDay();
+        LocalDateTime endTo = to == null ? LocalDate.now().atTime(LocalTime.MAX) : to.atTime(LocalTime.MAX);
+
+        ContractStatus contractStatus = keyword == null
+                ? null
+                : ContractStatus.valueOf(keyword.trim().toUpperCase());
+        List<Contract> contracts = contractRepository.findMyContracts(currentProfile,contractStatus,startFrom,endTo,pageable);
         return contracts.stream().map(this::contractDetailsResponseDTO).toList();
     }
 
@@ -208,7 +221,7 @@ public class ContractService {
                 .gigName(gig)
                 .client(client)
                 .agreementAmount(contract.getAgreementAmount())
-                .conversationId(contract.getConversation().getId())
+//                .conversationId(contract.getConversation().getId())
                 .status(contract.getContractStatus())
                 .deadline(contract.getExpectedDeliveryDate())
                 .jobTitle(contract.getJob().getTitle())

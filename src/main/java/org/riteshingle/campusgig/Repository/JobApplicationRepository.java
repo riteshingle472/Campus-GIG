@@ -19,20 +19,21 @@ import java.util.Optional;
 
 @Repository
 public interface JobApplicationRepository extends JpaRepository<JobApplication, Long>, JpaSpecificationExecutor<JobApplication> {
-    @Query(value = """
-            SELECT j
-            FROM JobApplication as j
-            WHERE j.gig.id = :gigId
-              AND j.job.id = :jobId
-              AND j.jobApplicationStatus = :status
+    @Query("""
+                SELECT ja
+                FROM JobApplication ja
+                WHERE ja.gig.id = :gigId
+                  AND ja.job.id = :jobId
+                  AND ja.jobApplicationStatus = :status
             """)
     Optional<JobApplication> findByGigAndJobAndJobApplicationStatus(
             @Param("gigId") Long gigId,
             @Param("jobId") Long jobId,
-            @Param("status") String status
+            @Param("status") JobApplicationStatus status
     );
 
-    Page<JobApplication> findByJob(Job job, Pageable pageable);
+    @Query("SELECT ja FROM JobApplication as ja WHERE ja.job = :job AND (:status IS NULL OR ja.jobApplicationStatus = :status)")
+    Page<JobApplication> findJobApplicants(@Param("job") Job job, Pageable pageable, @Param("status") JobApplicationStatus jobApplicationStatus);
 
     List<JobApplication> findByJob(Job job);
 

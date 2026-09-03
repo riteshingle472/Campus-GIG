@@ -24,6 +24,13 @@ public class SkillsService {
         return skills.stream().map(this::skillResponseDTO).toList();
     }
 
+    public List<SkillResponseDTO> searchSkill(Pageable pageable,String keyword){
+//        fetching skills
+        List<Skills> skills = skillsRepository.searchSkills(keyword,pageable);
+//        return in response DTO List
+        return skills.stream().map(this::skillResponseDTO).toList();
+    }
+
 //    Skill by ID
     public SkillResponseDTO getSkill(Long id){
 //        Find skill by ID and return in skill response

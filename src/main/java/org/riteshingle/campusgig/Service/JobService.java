@@ -10,7 +10,9 @@ import org.riteshingle.campusgig.RequestDTO.JobRequestDTO;
 import org.riteshingle.campusgig.ResponseDTO.GigResponseDTO;
 import org.riteshingle.campusgig.ResponseDTO.JobApplicantResponseDTO;
 import org.riteshingle.campusgig.ResponseDTO.JobResponseDTO;
+import org.riteshingle.campusgig.Specification.JobSpecification;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.redis.core.Cursor;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.ScanOptions;
@@ -18,6 +20,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.ObjectMapper;
 
+import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.util.*;
@@ -97,9 +100,16 @@ public class JobService {
 
 //    For -> GIG
 //    Get All Jobs
-    public List<JobResponseDTO> getJobs(Pageable pageable) {
+    public List<JobResponseDTO> getJobs(Pageable pageable, BigDecimal min,BigDecimal max) {
+
+        Specification<Job> specification = JobSpecification.hasStatus(JobStatus.OPEN);
+
+        if (max != null) specification = specification.and(JobSpecification.maxBudget(max));
+        if (min != null) specification = specification.and(JobSpecification.minBudget(min));
+
 //        Fetch all jobs
-        List<Job> jobs = jobRepository.findByJobStatus(JobStatus.OPEN,pageable).getContent();
+        List<Job> jobs = jobRepository.findAll(specification,pageable).getContent();
+
 //        return in Job response DTO list
         return jobs.stream().map(this::responseDTO).toList();
     }
@@ -323,7 +333,7 @@ public class JobService {
 
 //    For -> Client
 //    Get All Job Applicant
-    public List<JobApplicantResponseDTO> getAllJobApplicants(Long jobId,Pageable pageable) {
+    public List<JobApplicantResponseDTO> getAllJobApplicants(Long jobId,Pageable pageable,String keyword) {
         UserEntity currentProfile = authService.getCurrentProfile();
         Job job = jobRepository.findById(jobId).orElseThrow(() -> new ResourceNotFoundException("Job not found with id: " + jobId));
 
@@ -335,7 +345,14 @@ public class JobService {
             throw new UnauthorizedException("You are not authorized to modify this job");
         }
 
-        List<JobApplication> jobApplicant = jobApplicationRepository.findByJob(job,pageable).getContent();
+        JobApplicationStatus status;
+        try {
+            status = JobApplicationStatus.valueOf(keyword.trim().toUpperCase());
+        }catch (Exception e){
+            throw new InvalidStatusException("Invalid Job Application Status : "+keyword);
+        }
+
+        List<JobApplication> jobApplicant = jobApplicationRepository.findJobApplicants(job,pageable,status).getContent();
         return jobApplicant.stream().map(this::jobApplicantResponse).toList();
     }
 
