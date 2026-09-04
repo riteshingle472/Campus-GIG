@@ -221,7 +221,7 @@ public class ContractService {
                 .gigName(gig)
                 .client(client)
                 .agreementAmount(contract.getAgreementAmount())
-//                .conversationId(contract.getConversation().getId())
+                .conversationId(contract.getConversation().getId())
                 .status(contract.getContractStatus())
                 .deadline(contract.getExpectedDeliveryDate())
                 .jobTitle(contract.getJob().getTitle())
