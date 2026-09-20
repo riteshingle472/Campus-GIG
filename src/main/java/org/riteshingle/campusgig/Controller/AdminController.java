@@ -23,17 +23,20 @@ import java.util.Map;
 public class AdminController {
     private final AdminService adminService;
 
+//    Register Admin
     @PostMapping("/register")
     public ResponseEntity<?> register(@RequestBody AdminAuthDTO adminAuthDTO) {
         adminService.register(adminAuthDTO);
         return ResponseEntity.noContent().build();
     }
 
+//    Login Admin
     @GetMapping("/login")
     public ResponseEntity<Map<String, String>> login(@RequestBody AdminAuthDTO adminAuthDTO, HttpServletResponse response) {
         return ResponseEntity.ok(adminService.login(adminAuthDTO, response));
     }
 
+//    Stats Card
     @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/stats")
     public ResponseEntity<AdminDashboardCardStatsResponseDTO> stats(@RequestParam(required = false) LocalDate from,
@@ -45,6 +48,7 @@ public class AdminController {
         return ResponseEntity.ok(adminService.dashboardCardStats(from, to,jobApplicationStatus,jobStatus,contractStatus,reportStatus));
     }
 
+//    Most Popular Job
     @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/popular-job")
     public ResponseEntity<List<AdminDashboardMostPopularJobResponseDTO>> mostPopularJob(@RequestParam(required = false) LocalDate from,
@@ -52,6 +56,7 @@ public class AdminController {
         return ResponseEntity.ok(adminService.mostPopularJob(from, to));
     }
 
+//    Growth Chart
     @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/growth-chart")
     public ResponseEntity<List<GrowthChartResponseDTO>> growthChart(@RequestParam(required = false) LocalDate from,
@@ -59,6 +64,7 @@ public class AdminController {
         return ResponseEntity.ok(adminService.growthChart(from,to));
     }
 
+//    Admin Mail Service
     @PreAuthorize("hasRole('ADMIN')")
     @PostMapping("/mail")
     public ResponseEntity<?> sendMail(@RequestBody AdminSendMailRequestDTO requestDTO) {

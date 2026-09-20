@@ -23,10 +23,13 @@ public class ContractService {
     private final ContractRepository contractRepository;
     private final AuthService authService;
 
+//    Create Contract
     public Contract createContract(Job job, JobApplication jobApplication){
+//        check Job application and Job
         if(job == null) throw new ResourceNotFoundException("Job is null..");
         if(jobApplication == null) throw new ResourceNotFoundException("Job application is null..");
 
+//        Return response
         return Contract.builder()
                 .contractStatus(ContractStatus.PENDING)
                 .jobApplication(jobApplication)
@@ -39,34 +42,47 @@ public class ContractService {
                 .build();
     }
 
+//    Set Progress ( ) -> GIG
     public void setProgress(Long contractId,String progressStatus){
+//        Get Contract by ID
         Contract contract = contractRepository.findById(contractId).orElseThrow(() -> new ResourceNotFoundException("Contract not found by ID : " + contractId));
+
+//        Get Current Logged-in Profile
         UserEntity currentProfile = authService.getCurrentProfile();
+//        Get User Role
         Roles roles = currentProfile.getRoles().iterator().next();
 
+//        Check ( ) ->  GIG Role
         if(!roles.equals(Roles.GIG)) throw new ResourceNotFoundException("Only GIG can Change the project progress..");
 
-
+//        Check ( ) ->  Contract is Active
         if(!contract.getContractStatus().equals(ContractStatus.ACTIVE))
             throw new InvalidStatusException("You can't do change in contract because contract is : "+contract.getContractStatus().name());
 
+//        Get Progress Status
         ProgressStatus progress;
         try { progress = ProgressStatus.valueOf(progressStatus.trim().toUpperCase()); }
         catch (Exception e) {throw new InvalidStatusException("Invalid Progress status..");}
 
+//        Validate Progress status
         validateStatusTransition(contract.getProgressStatus(),progress);
 
+//        Set status and save in DB
         contract.setProgressStatus(progress);
         contractRepository.save(contract);
     }
 
+//    All Contracts
     public List<ContractDetailsResponseDTO> getContracts(Pageable pageable, String keyword, LocalDate from,LocalDate to){
+//       Get Current Logged-in Profile
         UserEntity currentProfile = authService.getCurrentProfile();
 
+//        Check ( ) ->  Profile is verified
         if(!currentProfile.getIsVerified()){
             throw new ForbiddenException("User is not verified...");
         }
 
+//        Verify From and To dates
         if (from != null && to != null && from.isAfter(to)) {
             throw new BadRequestException("From date cannot be after to date");
         }
@@ -78,22 +94,27 @@ public class ContractService {
         LocalDateTime startFrom = from == null ? LocalDate.now().atStartOfDay() : from.atStartOfDay();
         LocalDateTime endTo = to == null ? LocalDate.now().atTime(LocalTime.MAX) : to.atTime(LocalTime.MAX);
 
-        ContractStatus contractStatus = keyword == null
-                ? null
-                : ContractStatus.valueOf(keyword.trim().toUpperCase());
+//        Contract status
+        ContractStatus contractStatus = keyword == null ? null : ContractStatus.valueOf(keyword.trim().toUpperCase());
+//        Get Contract
         List<Contract> contracts = contractRepository.findMyContracts(currentProfile,contractStatus,startFrom,endTo,pageable);
         return contracts.stream().map(this::contractDetailsResponseDTO).toList();
     }
 
+//    Contract
     public ContractDetailsResponseDTO getContract(Long contractId){
+//        Get Contract by Contract ID
         Contract contract = contractRepository.findById(contractId).orElseThrow(() -> new ResourceNotFoundException("Contract not found by ID : " + contractId));
+//        Get Current Logged-in Profile
         UserEntity currentProfile = authService.getCurrentProfile();
-
+//        Get User role
         Roles roles = currentProfile.getRoles().iterator().next();
-        if(roles.equals(Roles.USER)){
-            throw new ForbiddenException("You are not authorized to check contract..");
-        }
 
+//        Check
+        if(roles.equals(Roles.USER))
+            throw new ForbiddenException("You are not authorized to check contract..");
+
+//        Verify GIG And Client Form Contract
         boolean isGig = currentProfile.getGig() != null && contract.getGig().getUser().getId().equals(currentProfile.getId());
         boolean isClient = contract.getClient().getId().equals(currentProfile.getId());
 
@@ -103,38 +124,49 @@ public class ContractService {
         return contractDetailsResponseDTO(contract);
     }
 
+//    Complete Contract
     public void completeContract(Long contractId){
+//        Get Contract by Contract ID
         Contract contract = contractRepository.findById(contractId).orElseThrow(() -> new ResourceNotFoundException("Contract not found by ID : " + contractId));
+//        Get Current Logged-in Profile
         UserEntity currentProfile = authService.getCurrentProfile();
 
-        if(!currentProfile.getRoles().contains(Roles.CLIENT)){
+//        Check ( ) -> Only Client can Complete Contract
+        if(!currentProfile.getRoles().contains(Roles.CLIENT))
             throw new ForbiddenException("You are not authorized update contract..");
-        }
 
-        if(contract.getContractStatus().equals(ContractStatus.COMPLETE) || contract.getContractStatus().equals(ContractStatus.WITHDRAWN)  || contract.getContractStatus().equals(ContractStatus.CANCEL)){
+//        Check ( ) -> Contract mustn't be Compete Withdrawn and Cancel
+        if(contract.getContractStatus().equals(ContractStatus.COMPLETE) || contract.getContractStatus().equals(ContractStatus.WITHDRAWN)  || contract.getContractStatus().equals(ContractStatus.CANCEL))
             throw new InvalidStatusException("Contract is Already "+contract.getContractStatus());
-        }
 
+//        Check ( ) -> Check Authorization
         if(!contract.getClient().getId().equals(currentProfile.getId())){
             throw new ForbiddenException("You are not authorized update contract..");
         }
 
+//        Check ( ) -> Check Contract Progress
         if(contract.getProgressStatus().equals(ProgressStatus.NOT_STARTED) || contract.getProgressStatus().equals(ProgressStatus.IN_PROGRESS)){
             throw new InvalidStatusException("Contract Work Progress is : "+contract.getProgressStatus().name());
         }
 
+//        Set status Complete and Saving in DB
         contract.setContractStatus(ContractStatus.COMPLETE);
         contractRepository.save(contract);
     }
 
+//    Activate Contract
     public void activeContract(Long contractId){
+//        Get Contract by contract Id
         Contract contract = contractRepository.findById(contractId).orElseThrow(() -> new ResourceNotFoundException("Contract not found by ID : " + contractId));
+//        Get current Logged-in Profile
         UserEntity currentProfile = authService.getCurrentProfile();
 
+//        Check ( ) -> Role
         if(!currentProfile.getRoles().contains(Roles.CLIENT)){
             throw new ForbiddenException("You are not authorized update contract..");
         }
 
+//        Check ( ) -> Only Pending Contract can Activate
         if(contract.getContractStatus().equals(ContractStatus.COMPLETE) || contract.getContractStatus().equals(ContractStatus.ACTIVE)){
             throw new InvalidStatusException("Contract is : "+contract.getContractStatus()+"..");
         }
@@ -143,6 +175,7 @@ public class ContractService {
             throw new InvalidStatusException("Contract is "+contract.getContractStatus()+" by "+contract.getActionInitiatedBy());
         }
 
+//        Check ( ) -> Check Contract Authorization
         if(!contract.getClient().getId().equals(currentProfile.getId())){
             throw new ForbiddenException("You are not authorized update contract..");
         }
@@ -155,6 +188,7 @@ public class ContractService {
         contractRepository.save(contract);
     }
 
+//    Cancel and Withdrawn Contract
     @Transactional
     public void cancelOrWithdrawnContract(Long contractId,ContractCancelOrWithdrawnRequestDTO dto) {
         // Find Contract

@@ -34,7 +34,7 @@ public class ChatService {
 
 
     @Transactional
-    public MessageResponse sendMessage(Long conversationId, SendMessageRequestDTO sendMessageRequestDTO, Principal principal) {
+    public void sendMessage(Long conversationId, SendMessageRequestDTO sendMessageRequestDTO, Principal principal) {
 
         log.info("========== CHAT MESSAGE ==========");
         log.info("Conversation ID = {}", conversationId);
@@ -43,9 +43,10 @@ public class ChatService {
 
 //        Get Current Logged-in user
         if(principal == null) throw new UnauthorizedException("User is not authenticated");
-
+//        Get Email From Principal
         String email = principal.getName();
 
+//        Get User by Email
         UserEntity currentProfile = userEntityRepository.findByEmail(email).orElseThrow(() ->new ResourceNotFoundException("User not found"));
 
 //        Find conversation
@@ -62,18 +63,20 @@ public class ChatService {
         if (contract.getContractStatus() == ContractStatus.WITHDRAWN || contract.getContractStatus() == ContractStatus.CANCEL)
             throw new InvalidStatusException("Chat is available only for active contract");
 
+//        Check Client and GIG authorization From Contract
         boolean isClient = contract.getClient().getId().equals(currentProfile.getId());
         boolean isGig = currentProfile.getGig() != null && contract.getGig().getId().equals(currentProfile.getGig().getId());
 
         if (!isClient && !isGig) throw new ForbiddenException("You are not a participant of this conversation");
 
-        Message message = Message.builder()
+//        Save Message in DB
+        Message saveMessage = Message.builder()
                 .message(sendMessageRequestDTO.message())
                 .sender(currentProfile)
                 .conversation(conversation)
                 .build();
 
-        Message saveMessage = messageRepository.save(message);
+        saveMessage = messageRepository.save(saveMessage);
 
         MessageResponse response = new MessageResponse(
                 saveMessage.getId(),
@@ -84,25 +87,30 @@ public class ChatService {
                 saveMessage.getSentAt()
         );
 
+//        Delivered message to the Subscriber
         messagingTemplate.convertAndSend("/topic/chat/" + conversationId, response);
-        return response;
     }
 
+//    Chat History
     @Transactional
     public List<MessageResponse> getMessage(Long conversationId, UserEntity currentProfile) {
+//        Get Conversation by Conversation ID
         Conversation conversation = conversationRepository.findById(conversationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Conversation not found"));
 
+//        Get contract from conversation
         Contract contract = conversation.getContract();
-
+//        Check Contract is not null
         if (contract == null) throw new ResourceNotFoundException("Contract not found");
 
+//        Check Client and GIG authorization from contract
         boolean isClient = contract.getClient().getId().equals(currentProfile.getId());
         boolean isGig = currentProfile.getGig() != null && contract.getGig().getId().equals(currentProfile.getGig().getId());
 
         if (!isClient && !isGig)
             throw new ForbiddenException("You are not a participant of this conversation");
 
+//        Fetch All Chat Messages
         return messageRepository.findByConversationIdOrderBySentAtAsc(conversationId).stream()
                 .map(message -> new MessageResponse(
                                 message.getId(),

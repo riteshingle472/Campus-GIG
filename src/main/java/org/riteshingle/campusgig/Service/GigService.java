@@ -19,6 +19,7 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
@@ -55,11 +56,12 @@ public class GigService {
         List<Long> userExistingSkills = userSkillsRepository.findSkillIdsByGigId(gig.getId());
 //        Filter skills from existing skills
         List<Long> newSkills = skillIds.stream().distinct().filter(id -> !userExistingSkills.contains(id)).toList();
-//        Find Skills by ID in List
-        List<Skills> skills = skillsRepository.findAllById(newSkills);
 
 //        If List is empty then do nothing
         if (newSkills.isEmpty()) return;
+
+//        Find Skills by ID in List
+        List<Skills> skills = skillsRepository.findAllById(newSkills);
 
 //        Skill list size and Distinct skill list size if both are different then throw Exception Invalid skill selection
         if (skills.size() != newSkills.size())
@@ -75,20 +77,17 @@ public class GigService {
 
     @Transactional
     public void becomeGig(BecomeGigRequestDTO dto) {
-        System.out.println("BEFORE GET PROFILE");
-
+//        Get Current Logged-in Profile
         UserEntity currentProfile = authService.getCurrentProfile();
-
-        System.out.println("AFTER GET PROFILE");
-        System.out.println("============================================================================");
 //        Check user is verified or not
         if(!currentProfile.getIsVerified())
             throw new ForbiddenException("User is not verified ..");
 
-        if(currentProfile.getGig() != null){
+//        Check ( ) -> Only User can become a gig
+        if(currentProfile.getGig() != null)
             throw new ForbiddenException("Only User can become a gig..");
-        }
 
+//        Check GIG Availability Status and Job Category
         AvailabilityStatus availabilityStatus;
         JobCategory jobCategory;
 
@@ -104,9 +103,11 @@ public class GigService {
             throw new InvalidStatusException("Invalid Availability Status..");
         }
 
+//        Check ( ) -> Skills mustn't null and empty
         if (dto.getSkillsId() == null || dto.getSkillsId().isEmpty())
             throw new BadRequestException("At least one skill is required");
 
+//        Get distinct skills and get skills By ID
         List<Long> distinctSkillList = dto.getSkillsId().stream().distinct().toList();
         List<Skills> skills = skillsRepository.findAllById(distinctSkillList);
 
@@ -124,6 +125,7 @@ public class GigService {
                 .semester(dto.getSemester())
                 .build();
 
+//        Set Skills and Save it in SB
         List<UserSkills> userSkills = skills.stream().map((skill -> new UserSkills(gig, skill))).toList();
 
         gig.setUserSkills(userSkills);
@@ -135,6 +137,7 @@ public class GigService {
 
     }
 
+//    Job Proposal
     public void applyForJob(JobApplicationRequestDTO dto){
         UserEntity currentProfile = authService.getCurrentProfile();
         Roles roles = currentProfile.getRoles().iterator().next();
@@ -146,9 +149,11 @@ public class GigService {
 
         GIG gig = currentProfile.getGig();
 
+//        Fetch Job by ID
         Long jobId = dto.getJobId();
         Job job = jobRepository.findById(jobId).orElseThrow(() -> new ResourceNotFoundException("Job not found.."));
 
+//        Check Job Status Deadline and Bid Amount
         if (!job.getJobStatus().equals(JobStatus.OPEN))
             throw new InvalidStatusException("Job is : "+job.getJobStatus().name());
 
@@ -162,7 +167,7 @@ public class GigService {
             throw new BadRequestException("Delivery date cannot be in the past");
 
 //        boolean existsByJobIdAndGigId = jobApplicationRepository.existsByJobIdAndGigId(jobId, gig.getId());
-        Optional<JobApplication>existingApplication  = jobApplicationRepository.findByGigAndJobAndJobApplicationStatus(gig.getId(), job.getId(), JobApplicationStatus.APPLIED);
+        Optional<JobApplication>existingApplication  = jobApplicationRepository.findByGigAndJob(gig.getId(), job.getId());
         if (existingApplication.isPresent()) {
             JobApplication application = existingApplication.get();
 
@@ -177,6 +182,7 @@ public class GigService {
             }
         }
 
+//        Save Job Proposal in DB
         JobApplication newJobApplication = JobApplication.builder()
                 .coverLetter(dto.getCoverLetter())
                 .bidAmount(dto.getBidAmount())
@@ -188,22 +194,27 @@ public class GigService {
 
         jobApplicationRepository.save(newJobApplication);
     }
-    
+
+//    Withdraw Job Proposal By Job ID
     public void withdrawJobApplicationByJobId(Long jobId){
         Job job = jobRepository.findById(jobId).orElseThrow(() -> new ResourceNotFoundException("Job not found with ID : " + jobId + ".."));
-        UserEntity client = authService.getCurrentProfile();
-        GIG gig = client.getGig();
+        UserEntity currentProfile = authService.getCurrentProfile();
+        GIG gig = currentProfile.getGig();
 
 //        Check user is verified or not
-        if(!client.getIsVerified())
+        if(!currentProfile.getIsVerified())
             throw new RuntimeException("User is not verified ..");
 
-        if(gig == null)
+        Roles roles = currentProfile.getRoles().iterator().next();
+
+        if(!roles.equals(Roles.GIG))
             throw new RuntimeException("Only Gig can Withdraw job..");
 
+//        Fetch Job Proposal by job ID , GIG ID and Job Application Status
         JobApplication jobApplication = jobApplicationRepository.findByGigAndJobAndJobApplicationStatus(gig.getId(),job.getId(),JobApplicationStatus.APPLIED)
                 .orElseThrow(() -> new ResourceNotFoundException("Job Application not found by Job Id or gig ID.."));
 
+//        Check ( ) -> Proposal Authorization
         if (jobApplication.getGig() == null || !gig.getId().equals(jobApplication.getGig().getId()))
             throw new ForbiddenException("You are not authorized GIG to withdraw job application ..");
 
@@ -215,16 +226,19 @@ public class GigService {
                 || jobApplication.getJobApplicationStatus().equals(JobApplicationStatus.SHORTLISTED))
             throw new InvalidStatusException("Cannot withdraw application because Application is "+jobApplication.getJobApplicationStatus().name());
 
-
+//        Save Application in DB
         jobApplication.setJobApplicationStatus(JobApplicationStatus.WITHDRAWN);
         jobApplicationRepository.save(jobApplication);
 
     }
 
+//    Update Job Proposal
     public void updateJobApplication(Long jobApplicationId, UpdateJobApplicationRequestDTO dto) {
+//        Get Job Application by job Application id
         JobApplication jobApplication = jobApplicationRepository.findById(jobApplicationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Job Application not found by ID : "+jobApplicationId));
 
+//        Get current logged-in Profile
         UserEntity currentProfile = authService.getCurrentProfile();
         Roles roles = currentProfile.getRoles().iterator().next();
 
@@ -232,6 +246,7 @@ public class GigService {
         if(!currentProfile.getIsVerified())
             throw new ForbiddenException("User is not verified ..");
 
+//        Check Profile Role only GIG can update Job Proposal
         if(!roles.equals(Roles.GIG))
             throw new ForbiddenException("Only GIG can Update there Job Application : ");
 
@@ -247,11 +262,31 @@ public class GigService {
             throw new InvalidStatusException("You can't update your job application because your job application is : "+jobApplication.getJobApplicationStatus().name());
         }
 
-        if(dto.getBidAmount() != null)
-            jobApplication.setBidAmount(dto.getBidAmount());
+        Job job = jobApplication.getJob();
 
-        if(dto.getDeliveryDate() != null)
-            jobApplication.setDeliveryDate(dto.getDeliveryDate());
+//        Validate bid amount
+        if (dto.getBidAmount() == null || dto.getBidAmount().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new BadRequestException("Bid amount must be greater than zero");
+        }
+
+//        Bid amount should not be greater than the job budget
+        if (dto.getBidAmount().compareTo(job.getBudget()) > 0) {
+            throw new BadRequestException("Bid amount cannot be greater than the job budget");
+        }
+
+//        Validate delivery date
+        if (dto.getDeliveryDate() == null) {
+            throw new BadRequestException("Delivery date is required");
+        }
+
+//        Delivery date should not be in the past
+        if (dto.getDeliveryDate().isBefore(LocalDate.now())) {
+            throw new BadRequestException("Delivery date cannot be in the past");
+        }
+
+//        Delivery date should not be after the expected delivery date
+        if (dto.getDeliveryDate().isAfter(job.getDeadline()))
+            throw new BadRequestException("Delivery date cannot be after the expected delivery date");
 
         if(dto.getCoverLetter() != null)
             jobApplication.setCoverLetter(dto.getCoverLetter());
@@ -259,10 +294,13 @@ public class GigService {
         jobApplicationRepository.save(jobApplication);
     }
 
+//    Withdrawn Job Application by Job ID
     public void withdrawJobApplicationByJobApplicationId(Long jobApplicationId){
+//        Get Job Application by JobApplication ID
         JobApplication jobApplication = jobApplicationRepository.findById(jobApplicationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Job Application not found ..."));
 
+//        Get Current Logged-in Prrofile
         UserEntity currentProfile = authService.getCurrentProfile();
         Roles roles = currentProfile.getRoles().iterator().next();
 
@@ -281,17 +319,16 @@ public class GigService {
         if (jobApplication.getJobApplicationStatus() == JobApplicationStatus.WITHDRAWN)
             throw new InvalidStatusException("Job Application is already withdrawn ..");
 
-        if(jobApplication.getJobApplicationStatus().equals(JobApplicationStatus.ACCEPTED)
-                || jobApplication.getJobApplicationStatus().equals(JobApplicationStatus.REJECTED)
-                || jobApplication.getJobApplicationStatus().equals(JobApplicationStatus.SHORTLISTED))
-            throw new InvalidStatusException("Cannot withdraw application because Application is "+jobApplication.getJobApplicationStatus().name());
+       if(!jobApplication.getJobApplicationStatus().equals(JobApplicationStatus.APPLIED))
+           throw new BadRequestException("You can't withdrawn your Job Application , Application is already : "+jobApplication.getJobApplicationStatus());
 
         jobApplication.setJobApplicationStatus(JobApplicationStatus.WITHDRAWN);
         jobApplicationRepository.save(jobApplication);
-
     }
 
+//    Get All Job Application
     public List<JobApplicationSortingAndFilteringResponseDTO> getAllJobApplication(JobApplicationFilterAndSortingRequestDTO dto, Pageable pageable){
+//        Get current logged-in Profile
         UserEntity currentProfile = authService.getCurrentProfile();
         Roles roles = currentProfile.getRoles().iterator().next();
 
@@ -310,6 +347,7 @@ public class GigService {
         }catch (Exception e){
             throw new InvalidStatusException("Invalid Job Application Status : "+dto.getApplicationStatus());
         }
+
         Specification<JobApplication> specification = Specification.where(GigSpecification.hasGig(gig.getId()))
                 .and(GigSpecification.budgetGraterThan(dto.getMinBidAmount()))
                 .and(GigSpecification.budgetLessThan(dto.getMaxBidAmount()))

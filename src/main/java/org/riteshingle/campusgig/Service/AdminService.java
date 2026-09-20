@@ -44,7 +44,7 @@ public class AdminService {
     private final AdminRefreshTokenRepository adminRefreshTokenRepository;
     private final AdminRepository adminRepository;
 
-    //    Register User
+//    Register User
     public void register(AdminAuthDTO dto)  {
 //        Check user is already exists or not ?
         Optional<Admin> byEmail = adminRepository.findByEmail(dto.getEmail());
@@ -68,9 +68,8 @@ public class AdminService {
 
     public Map<String, String> login(AdminAuthDTO dto, HttpServletResponse response) {
 //        Token Expiry
-//        Date ACCESS_TOKEN_EXPIRY = new Date(System.currentTimeMillis() + (15 * 60 * 1000));
+        Date ACCESS_TOKEN_EXPIRY = new Date(System.currentTimeMillis() + (15 * 60 * 1000));
         Date REFRESH_TOKEN_EXPIRY = new Date(System.currentTimeMillis() + (7 * 24 * 60 * 60 * 1000));
-        Date ACCESS_TOKEN_EXPIRY = new Date(System.currentTimeMillis() + (7 * 24 * 60 * 60 * 1000));
 
 //        Get a user by Email
         Admin admin = adminRepository.findByEmail(dto.getEmail()).orElseThrow(() -> new ResourceNotFoundException("User not found"));
@@ -91,7 +90,7 @@ public class AdminService {
                 tokenExpired = true;
             }
 
-//            If is expired then generate new token and save in DB
+//            If token is expired then generate new token and save in DB
             if (tokenExpired) {
                 refresh = jwtUtils.generateToken(dto.getEmail(), REFRESH_TOKEN_EXPIRY,admin.getRoles());
                 adminRefreshToken.setRefreshToken(refresh);
@@ -128,10 +127,12 @@ public class AdminService {
         }
     }
 
+//    Admin Dashboard Stats Card
     public AdminDashboardCardStatsResponseDTO dashboardCardStats(LocalDate from, LocalDate to,
                                                                  String jobApplicationStatus,
                                                                  String jobStatus,String contractStatus,
                                                                  String actionInitiated) {
+//       Verify Date
         if (from != null && to != null && from.isAfter(to)) {
             throw new BadRequestException("From date cannot be after to date");
         }
@@ -172,13 +173,26 @@ public class AdminService {
 //            throw new InvalidStatusException("Invalid Report Status : "+actionInitiated);
 //        }
 
+//        Total CLIENT from date to date
         Long totalClient = userEntityRepository.findTotalUserByStatus(Roles.CLIENT, startFrom, endTo);
+
+//        Total USER from date to date
         Long totalUSER = userEntityRepository.findTotalUserByStatus(Roles.USER, startFrom, endTo);
+
+//        Total GIG from date to date
         Long totalGIG = gigRepository.findTotalGIGByStatus(startFrom, endTo);
+
+//        Total Job Application from date to date
         Long totalJobApplication = jobApplicationRepository.findTotalJobApplicationByStatus(applicationStatus, startFrom, endTo);
+
+//        Total Open Jobs from date to date
         Long totalOpenJob = jobRepository.findTotalJobByStatus(status, startFrom, endTo);
+
+//        Total Contract from date to date
         Long totalContract = contractRepository.findTotalContractByStatus(cs, startFrom, endTo);
+
 //        Long totalReport = reportRepository.findTotalActionInitiatedBy(actionInitiatedBy, startFrom, endTo);
+
 
         return AdminDashboardCardStatsResponseDTO.builder()
                 .totalJob(totalOpenJob)
@@ -191,7 +205,9 @@ public class AdminService {
                 .build();
     }
 
+//    Most Popular Job
     public List<AdminDashboardMostPopularJobResponseDTO> mostPopularJob(LocalDate from, LocalDate to) {
+//        Verify Dates
         if (from != null && to != null && from.isAfter(to))
             throw new BadRequestException("From date cannot be after to date");
 
@@ -201,22 +217,19 @@ public class AdminService {
         LocalDateTime startFrom = from == null ? LocalDate.now().atStartOfDay() : from.atStartOfDay();
         LocalDateTime endTo = to == null ? LocalDateTime.now() : to.atTime(LocalTime.MAX);
 
-        if (startFrom.isAfter(LocalDateTime.now())) {
-            throw new RuntimeException("From date cannot be a future date");
-        }
-
-        if (endTo.isAfter(LocalDateTime.now().plusDays(1))) {
-            throw new RuntimeException("To date cannot be a future date");
-        }
-
+//        Fetch all Job Category and their count
         List<Object[]> popularJob = jobRepository.findPopularJobCategories(startFrom, endTo);
+
+//        Map popular Job in DTO
         return popularJob.stream().map(job -> new AdminDashboardMostPopularJobResponseDTO(
                 (Long) job[1],
                 (JobCategory) job[0]
         )).toList();
     }
 
+//    Growth Chart
     public List<GrowthChartResponseDTO> growthChart(LocalDate from,LocalDate to) {
+//        Verify Date
         if (from != null && to != null && from.isAfter(to))
             throw new BadRequestException("From date cannot be after to date");
 
@@ -224,23 +237,24 @@ public class AdminService {
             throw new BadRequestException("To date cannot be in the future");
 
         LocalDateTime localDateTime = LocalDateTime.now();
-
         LocalDateTime startFrom = from == null ? localDateTime.with(TemporalAdjusters.firstDayOfMonth()).with(LocalTime.MIN) : from.atStartOfDay();
-
         LocalDateTime endTo = LocalDateTime.now();
 
         if (startFrom.isAfter(LocalDateTime.now())) {
             throw new RuntimeException("From date cannot be a future date");
         }
 
+//         Fetch daily growth data for users, gigs, clients, jobs and applications
         List<Object[]> userGrowth = userEntityRepository.getUserGrowth(Roles.USER, startFrom, endTo);
         List<Object[]> gigGrowth = gigRepository.getGigGrowth(startFrom, endTo);
         List<Object[]> clientGrowth = userEntityRepository.getClientGrowth(Roles.CLIENT, startFrom, endTo);
         List<Object[]> jobGrowth = jobRepository.getJobGrowth(startFrom, endTo);
         List<Object[]> applicationGrowth = jobApplicationRepository.getApplicationGrowth(startFrom,endTo);
 
+//         TreeMap keeps the growth data sorted by date
         Map<LocalDate, GrowthChartResponseDTO> growthMap = new TreeMap<>();
 
+//        Add user growth data to the map
         for (Object[] row : userGrowth) {
             LocalDate date = ((java.sql.Date) row[0]).toLocalDate();
             Long count = (Long) row[1];
@@ -255,9 +269,11 @@ public class AdminService {
                             .applications(0L)
                             .build()
             );
+//            Set the number of Users created on this date
             dto.setUsers(count);
         }
 
+//        Add GIG growth data to the map
         for (Object[] row : gigGrowth) {
             LocalDate date = ((java.sql.Date) row[0]).toLocalDate();
             Long count = (Long) row[1];
@@ -272,9 +288,12 @@ public class AdminService {
                             .applications(0L)
                             .build()
             );
+
+//            Set the number of GIG created on this date
             dto.setGigs(count);
         }
 
+//        Add Client growth data to the map
         for (Object[] row : clientGrowth) {
 
             LocalDate date = ((java.sql.Date) row[0]).toLocalDate();
@@ -290,10 +309,11 @@ public class AdminService {
                             .applications(0L)
                             .build()
             );
-
+//            Set the number of Client created on this date
             dto.setClients(count);
         }
 
+//        Add Job Application growth data to the map
         for (Object[] row : applicationGrowth) {
 
             LocalDate date = ((java.sql.Date) row[0]).toLocalDate();
@@ -310,9 +330,11 @@ public class AdminService {
                             .build()
             );
 
+//            Set the number of Job Application created on this date
             dto.setApplications(count);
         }
 
+//        Add Job growth data to the map
         for (Object[] row : jobGrowth) {
 
             LocalDate date = ((java.sql.Date) row[0]).toLocalDate();
@@ -328,13 +350,14 @@ public class AdminService {
                             .applications(0L)
                             .build()
             );
-
+//            Set the number of Job created on this date
             dto.setJobs(count);
         }
 
         return new ArrayList<>(growthMap.values());
     }
 
+//    Email Service For Admin
     public void adminMail(AdminSendMailRequestDTO requestDTO){
         boolean exists = userEntityRepository.existsByEmail(requestDTO.getTo());
         if(!exists) throw new ResourceNotFoundException("User not exists by : "+requestDTO.getTo());
@@ -342,6 +365,8 @@ public class AdminService {
     }
 
 //    Earning Chart/Board
+
+
 //    Management API's
 
     //    GIG
@@ -380,16 +405,19 @@ public class AdminService {
         return jobs.stream().map(this::jobResponseDTO).toList();
     }
 
+//    Job Application
     public AdminJobApplicationResponseDTO jobApplication(Long jobApplicationId) {
         JobApplication jobApplication = jobApplicationRepository.findById(jobApplicationId).orElseThrow(() -> new ResourceNotFoundException("Job Application not found by Job Application ID : "+jobApplicationId));
         return jobApplicationResponseDTO(jobApplication);
     }
 
+//    Job Applications
     public List<AdminJobApplicationListResponseDTO> jobApplications(Pageable pageable){
         List<JobApplication> content = jobApplicationRepository.findAll(pageable).getContent();
         return content.stream().map(this::jobApplicationListResponseDTO).toList();
     }
 
+//    Reports
     public List<AdminReportListResponseDTO> reports(Pageable pageable){
         List<Report> content = reportRepository.findAll(pageable).getContent();
         return content.stream().map(report -> AdminReportListResponseDTO.builder()
@@ -403,6 +431,7 @@ public class AdminService {
         ).toList();
     }
 
+//    Report
     public AdminReportResponseDTO report(Long reportId){
         Report report = reportRepository.findById(reportId).orElseThrow(() -> new ResourceNotFoundException("Report not found by ID : "+reportId));
         return reportResponseDTO(report);

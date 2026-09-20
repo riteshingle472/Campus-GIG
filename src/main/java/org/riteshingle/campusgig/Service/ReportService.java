@@ -22,13 +22,6 @@ public class ReportService {
         Contract contract = contractRepository.findById(dto.getContractId())
                 .orElseThrow(() -> new ResourceNotFoundException("Contract not found..."));
 
-        if(contract.getContractStatus().equals(ContractStatus.ACTIVE) ||
-            contract.getContractStatus().equals(ContractStatus.WITHDRAWN) ||
-            contract.getContractStatus().equals(ContractStatus.CANCEL) ||
-            contract.getContractStatus().equals(ContractStatus.PENDING)){
-                throw new InvalidStatusException("Report can only be submitted for active or completed contract");
-        }
-
         GIG gig = contract.getGig();
         UserEntity client = contract.getClient();
         ActionInitiatedBy reportedBy;
@@ -38,7 +31,6 @@ public class ReportService {
         }else if(gig.getUser().getId().equals(currentProfile.getId())) {
             reportedBy = ActionInitiatedBy.GIG;
         }else throw new ForbiddenException("You are not a participant of this contract");
-
 
 
         ReportReason reportReason = ReportReason.valueOf(dto.getReportReasonStatus().trim().toUpperCase());

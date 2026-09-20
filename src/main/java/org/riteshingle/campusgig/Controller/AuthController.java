@@ -34,8 +34,9 @@ public class AuthController {
 
     //    Email varification OTP API
     @GetMapping("/verification")
-    public ResponseEntity<String> verifyEmailOTP() {
-        return ResponseEntity.ok(authService.verifyEmailOTP());
+    public ResponseEntity<?> verifyEmailOTP() {
+        authService.verifyEmailOTP();
+        return ResponseEntity.status(HttpStatus.CREATED).build();
     }
 
     //    Email Varification API
@@ -46,14 +47,15 @@ public class AuthController {
 
     //    Forgot Password OTP API
     @GetMapping("/forgot-password")
-    public ResponseEntity<String> forgotPasswordOTP() {
-        return ResponseEntity.ok(authService.forgotPasswordOTP());
+    public ResponseEntity<?> forgotPasswordOTP(@RequestParam String email) {
+        authService.forgotPasswordOTP(email);
+        return ResponseEntity.status(HttpStatus.CREATED).build();
     }
 
     //    Forgot/Change Password API
     @PatchMapping("/forgot-password")
-    public ResponseEntity<String> forgotPassword(@RequestParam String otp, @RequestParam String newPassword) {
-        return ResponseEntity.ok(authService.forgotPassword(otp, newPassword));
+    public ResponseEntity<String> forgotPassword(@RequestParam String otp, @RequestParam String newPassword,@RequestParam String email) {
+        return ResponseEntity.ok(authService.forgotPassword(otp, newPassword,email));
     }
 
     //    Refresh Token

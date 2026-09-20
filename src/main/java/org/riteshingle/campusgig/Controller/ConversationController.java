@@ -26,6 +26,7 @@ public class ConversationController {
     private final ChatService chatService;
     private final AuthService authService;
 
+//    Chat History
     @PreAuthorize("hasRole('CLIENT') or hasRole('GIG')")
     @GetMapping("/{conversationId}/messages")
     public ResponseEntity<List<MessageResponse>> getMessages(@PathVariable Long conversationId){

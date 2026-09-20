@@ -22,6 +22,7 @@ import java.util.List;
 public class ContractController {
     private final ContractService contractService;
 
+//    All Contracts
     @PreAuthorize("hasRole('CLIENT') or hasRole('GIG')")
     @GetMapping("/contracts")
     public ResponseEntity<List<ContractDetailsResponseDTO>> getContracts(@RequestParam(required = false,defaultValue = "1")int page,
@@ -35,12 +36,14 @@ public class ContractController {
         return ResponseEntity.ok(contractService.getContracts(pageable,keyword,from,to));
     }
 
+//    Contract by ID
     @PreAuthorize("hasRole('CLIENT') or hasRole('GIG')")
     @GetMapping("/contract/{contractId}")
     public ResponseEntity<ContractDetailsResponseDTO> getContract(@PathVariable Long contractId){
         return ResponseEntity.ok(contractService.getContract(contractId));
     }
 
+//    Set Work Progress ( ) -> GIG
     @PreAuthorize("hasRole('GIG')")
     @PatchMapping("/progress")
     public ResponseEntity<?> updateProgress(@RequestParam Long contractId,@RequestParam String progress){
@@ -48,6 +51,7 @@ public class ContractController {
         return ResponseEntity.noContent().build();
     }
 
+//    Complete Contract ( ) -> Client
     @PreAuthorize("hasRole('CLIENT')")
     @PatchMapping("/complete-contract/{contractId}")
     public ResponseEntity<?> completeContract(@PathVariable Long contractId){
@@ -55,6 +59,7 @@ public class ContractController {
         return ResponseEntity.noContent().build();
     }
 
+//    Activate Contract ( ) -> Client
     @PreAuthorize("hasRole('CLIENT')")
     @PatchMapping("/active-contract/{contractId}")
     public ResponseEntity<?> activeContract(@PathVariable Long contractId){
@@ -62,6 +67,7 @@ public class ContractController {
         return ResponseEntity.noContent().build();
     }
 
+//    Break Contract
     @PreAuthorize("hasRole('CLIENT') OR hasRole('GIG')")
     @PatchMapping("/break-contract/{contractId}")
     public ResponseEntity<?> cancelOrWithdrawnContract(@PathVariable Long contractId, @Valid @RequestBody ContractCancelOrWithdrawnRequestDTO dto){

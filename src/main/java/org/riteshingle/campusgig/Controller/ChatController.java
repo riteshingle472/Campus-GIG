@@ -17,6 +17,7 @@ import java.security.Principal;
 public class ChatController {
     private final ChatService chatService;
 
+//    Chat
     @MessageMapping("/chat/{conversationId}")
     public void sendMessage(@DestinationVariable Long conversationId, @Payload SendMessageRequestDTO request ,  Principal principal) {
         chatService.sendMessage(conversationId, request, principal);

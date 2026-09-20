@@ -21,6 +21,7 @@ import java.util.List;
 public class ReviewController {
     private final ReviewService reviewService;
 
+//    Review
     @PreAuthorize("hasRole('CLIENT') or hasRole('GIG')")
     @PostMapping("/review/{contractId}")
     public ResponseEntity<?> createReview(@PathVariable Long contractId,@Valid @RequestBody CreateReviewRequest request) {
@@ -28,6 +29,7 @@ public class ReviewController {
         return ResponseEntity.status(HttpStatus.CREATED).build();
     }
 
+//    Delete Review
     @PreAuthorize("hasRole('CLIENT') or hasRole('GIG')")
     @DeleteMapping("/review/{contractId}")
     public ResponseEntity<?> deleteReview(@PathVariable Long contractId){
@@ -35,6 +37,7 @@ public class ReviewController {
         return ResponseEntity.noContent().build();
     }
 
+//    Update Review
     @PreAuthorize("hasRole('CLIENT') or hasRole('GIG')")
     @PatchMapping("/review/{contractId}")
     public ResponseEntity<?> updateReview(@PathVariable Long contractId,@Valid @RequestBody CreateReviewRequest request){
@@ -42,6 +45,7 @@ public class ReviewController {
         return ResponseEntity.noContent().build();
     }
 
+//    Get All Reviews
     @PreAuthorize("hasRole('CLIENT') or hasRole('GIG')")
     @GetMapping("/reviews")
     public ResponseEntity<List<ReviewResponseDTO>> reviews(@RequestParam(required = false,defaultValue = "1") int pageNumber ,

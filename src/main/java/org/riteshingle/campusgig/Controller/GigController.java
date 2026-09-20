@@ -20,6 +20,7 @@ import java.util.List;
 public class GigController {
     private final GigService gigService;
 
+//    Become a GIG
     @PreAuthorize("hasRole('CLIENT')")
     @PostMapping("/become-gig")
     public ResponseEntity<?> becomeGig(@RequestBody BecomeGigRequestDTO dto){
@@ -27,6 +28,7 @@ public class GigController {
         return ResponseEntity.status(HttpStatus.CREATED).build();
     }
 
+//    Add Skills ( ) -> GIG
     @PreAuthorize("hasRole('GIG')")
     @PatchMapping("/add-skills")
     public ResponseEntity<?> addSkills(@RequestBody AddSkillsRequestDTO dto){
@@ -34,6 +36,7 @@ public class GigController {
         return ResponseEntity.noContent().build();
     }
 
+//    Job Proposal ( ) -> GIG
     @PreAuthorize("hasRole('GIG')")
     @PostMapping("/proposal")
     public ResponseEntity<?> applyForJob(@RequestBody JobApplicationRequestDTO dto){
@@ -41,6 +44,7 @@ public class GigController {
         return ResponseEntity.status(HttpStatus.CREATED).build();
     }
 
+//    Update Proposal ( ) -> GIG
     @PreAuthorize("hasRole('GIG')")
     @PatchMapping("/proposal/{jobApplicationId}")
     public ResponseEntity<?> updateJobApplication(@PathVariable Long jobApplicationId , @RequestBody UpdateJobApplicationRequestDTO dto){
@@ -48,6 +52,7 @@ public class GigController {
         return ResponseEntity.noContent().build();
     }
 
+//    Withdrawn Proposal ( ) -> GIG
     @PreAuthorize("hasRole('GIG')")
     @PatchMapping("/withdraw-proposal/{jobApplicationId}")
     public ResponseEntity<?> withdrawJobByJobApplicationId(@PathVariable Long jobApplicationId){
@@ -55,6 +60,7 @@ public class GigController {
         return ResponseEntity.noContent().build();
     }
 
+//    All Proposals ( ) -> GIG
     @PreAuthorize("hasRole('GIG')")
     @GetMapping("/proposals ")
     public ResponseEntity<List<JobApplicationSortingAndFilteringResponseDTO>> getAllJobApplication(@RequestBody JobApplicationFilterAndSortingRequestDTO dto,

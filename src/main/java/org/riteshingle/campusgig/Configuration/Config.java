@@ -36,10 +36,10 @@ public class Config {
         return http.csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(req -> req
                         .requestMatchers("/auth/test").authenticated()
+                        .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/ws/**").permitAll()
                         .requestMatchers("/api/admin/login").permitAll()
                         .requestMatchers("/api/admin/register").permitAll()
-                        .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/v3/api-docs","/v3/api-docs/**","/swagger-ui.html","/swagger-ui/**").permitAll()
                         .anyRequest().authenticated()
                 )
@@ -63,8 +63,11 @@ public class Config {
     public CorsConfigurationSource corsConfigurationSource(){
         CorsConfiguration configuration = new CorsConfiguration();
 
+//        All HTTP methods are allowed
         configuration.setAllowedMethods(List.of("*"));
+//        http://localhost:3000
         configuration.setAllowedOriginPatterns(List.of("*"));
+//        JWT header type
         configuration.setAllowedHeaders(List.of("Authorization","Content-type"));
         configuration.setAllowCredentials(true);
 
