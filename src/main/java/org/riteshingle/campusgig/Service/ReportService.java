@@ -8,7 +8,11 @@ import org.riteshingle.campusgig.Exception.ResourceNotFoundException;
 import org.riteshingle.campusgig.Model.*;
 import org.riteshingle.campusgig.Repository.*;
 import org.riteshingle.campusgig.RequestDTO.ReportRequestDTO;
+import org.riteshingle.campusgig.ResponseDTO.ReportResponseDTO;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -49,48 +53,35 @@ public class ReportService {
         reportRepository.save(report);
     }
 
-//    private void validateReportRelationship(
-//            GIG gig,
-//            UserEntity client,
-//            Job job,
-//            Contract contract) {
-//
-//        boolean validRelationship = false;
-//
-//        // Contract relation
-//        if (contract != null) {
-//            boolean sameGig =
-//                    contract.getGig() != null &&
-//                            contract.getGig().getId().equals(gig.getId());
-//
-//            boolean sameClient =
-//                    contract.getClient() != null &&
-//                            contract.getClient().getId().equals(client.getId());
-//
-//            validRelationship = sameGig && sameClient;
-//        }
-//
-//        // Job application relation
-//        if (!validRelationship && job != null) {
-//
-//            boolean sameClient =
-//                    job.getClient() != null &&
-//                            job.getClient().getId().equals(client.getId());
-//
-//            boolean appliedByGig =
-//                    jobApplicationRepository
-//                            .existsByJobIdAndGigId(
-//                                    job.getId(),
-//                                    gig.getId()
-//                            );
-//
-//            validRelationship = sameClient && appliedByGig;
-//        }
-//
-//        if (!validRelationship) {
-//            throw new ForbiddenException(
-//                    "You cannot report this user because there is no valid relationship"
-//            );
-//        }
-//    }
+    @Transactional
+    public List<ReportResponseDTO> reports(){
+//        Get Current Logged-in Profile
+        UserEntity currentProfile = authService.getCurrentProfile();
+        Roles roles = currentProfile.getRoles().iterator().next();
+
+        if(!currentProfile.getIsVerified()){
+            throw new IllegalArgumentException("Profile is not verified");
+        }
+
+        List<Report> reports;
+        if(roles.equals(Roles.GIG)){
+            reports = reportRepository.findReports(ActionInitiatedBy.GIG);
+        }else {
+            reports = reportRepository.findReports(ActionInitiatedBy.CLIENT);
+        }
+
+        return reports.stream()
+                .map(report -> ReportResponseDTO.builder()
+                        .id(report.getId())
+                        .reason(report.getReportReason().name())
+                        .actionInitiatedBy(report.getActionInitiatedBy())
+                        .description(report.getDescription())
+                        .reportStatus(report.getReportStatus().name())
+                        .adminRemark(report.getAdminRemark())
+                        .createdAt(report.getCreatedAt())
+                        .resolvedAt(report.getResolveAt())
+                        .build()
+                )
+                .toList();
+    }
 }

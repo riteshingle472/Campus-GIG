@@ -131,7 +131,7 @@ public class AdminService {
     public AdminDashboardCardStatsResponseDTO dashboardCardStats(LocalDate from, LocalDate to,
                                                                  String jobApplicationStatus,
                                                                  String jobStatus,String contractStatus,
-                                                                 String actionInitiated) {
+                                                                 String reportStatus) {
 //       Verify Date
         if (from != null && to != null && from.isAfter(to)) {
             throw new BadRequestException("From date cannot be after to date");
@@ -166,12 +166,12 @@ public class AdminService {
             throw new InvalidStatusException("Invalid Contract Status : "+contractStatus);
         }
 
-//        ActionInitiatedBy actionInitiatedBy;
-//        try {
-//            actionInitiatedBy = ActionInitiatedBy.valueOf(actionInitiated.trim().toUpperCase());
-//        }catch (Exception e){
-//            throw new InvalidStatusException("Invalid Report Status : "+actionInitiated);
-//        }
+        ReportStatus adminReportStatus;
+        try {
+            adminReportStatus = ReportStatus.valueOf(reportStatus.trim().toUpperCase());
+        }catch (Exception e){
+            throw new InvalidStatusException("Invalid Report Status : "+reportStatus);
+        }
 
 //        Total CLIENT from date to date
         Long totalClient = userEntityRepository.findTotalUserByStatus(Roles.CLIENT, startFrom, endTo);
@@ -191,7 +191,7 @@ public class AdminService {
 //        Total Contract from date to date
         Long totalContract = contractRepository.findTotalContractByStatus(cs, startFrom, endTo);
 
-//        Long totalReport = reportRepository.findTotalActionInitiatedBy(actionInitiatedBy, startFrom, endTo);
+        Long totalReport = reportRepository.findTotalReportByStatus(adminReportStatus, startFrom, endTo);
 
 
         return AdminDashboardCardStatsResponseDTO.builder()
@@ -201,7 +201,7 @@ public class AdminService {
                 .totalContract(totalContract)
                 .totalJobApplication(totalJobApplication)
                 .totalUser(totalUSER)
-//                .totalReport(totalReport)
+                .totalReport(totalReport)
                 .build();
     }
 
@@ -432,7 +432,7 @@ public class AdminService {
     }
 
 //    Report
-    public AdminReportResponseDTO report(Long reportId){
+    public ReportResponseDTO report(Long reportId){
         Report report = reportRepository.findById(reportId).orElseThrow(() -> new ResourceNotFoundException("Report not found by ID : "+reportId));
         return reportResponseDTO(report);
     }
@@ -501,24 +501,8 @@ public class AdminService {
                 .build();
     }
 
-    private GigResponseDTO gigResponseDTO(GIG gig) {
-        return GigResponseDTO.builder()
-                .id(gig.getId())
-                .gigFirstName(gig.getUser().getFirstName())
-                .gigLastName(gig.getUser().getLastName())
-                .gigEmail(gig.getUser().getEmail())
-                .gigPhoneNumber(gig.getUser().getPhoneNumber())
-                .description(gig.getDescription())
-                .title(gig.getTitle())
-                .college(gig.getCollege())
-                .department(gig.getDepartment())
-                .semester(gig.getSemester())
-                .availabilityStatus(gig.getAvailabilityStatus())
-                .build();
-    }
-
-    private AdminReportResponseDTO reportResponseDTO(Report report) {
-        return AdminReportResponseDTO.builder()
+    private ReportResponseDTO reportResponseDTO(Report report) {
+        return ReportResponseDTO.builder()
                 .reportStatus(report.getReportStatus().name())
                 .adminRemark(report.getAdminRemark() == null ? null : report.getAdminRemark())
                 .description(report.getDescription())

@@ -96,8 +96,8 @@ public class AuthService {
     //    Login
     public Map<String, String> login(LoginRequestDTO dto, HttpServletResponse response) {
 //        Token Expiry
-        Date ACCESS_TOKEN_EXPIRY = new Date(System.currentTimeMillis() + (21 * 24 * 60 * 60 * 1000));
-        Date REFRESH_TOKEN_EXPIRY = new Date(System.currentTimeMillis() + (21 * 24 * 60 * 60 * 1000));
+        Date ACCESS_TOKEN_EXPIRY = new Date(System.currentTimeMillis() + (15 * 60 * 1000));
+        Date REFRESH_TOKEN_EXPIRY = new Date(System.currentTimeMillis() + (7 * 24 * 60 * 60 * 1000));
 
 //        Get a user by Email
         UserEntity user = userEntityRepository.findByEmailWithRoles(dto.getEmail()).orElseThrow(() -> new ResourceNotFoundException("User not found"));

@@ -10,11 +10,16 @@ import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Repository
 public interface ReportRepository extends JpaRepository<Report, Long> {
 //    boolean existsByContractIdActionInitiatedBy(Long contractId, ActionInitiatedBy actionInitiatedBy);
 
-    @Query("SELECT COUNT(r) FROM Report r WHERE r.createdAt >= :fromDate AND r.createdAt <= :endDate AND r.actionInitiatedBy = :status")
-    Long findTotalActionInitiatedBy(@Param("status") ActionInitiatedBy actionInitiatedBy,@Param("fromDate") LocalDateTime from,@Param("endDate") LocalDateTime endTo);
+    @Query("SELECT COUNT(r) FROM Report r WHERE r.createdAt >= :fromDate AND r.createdAt <= :endDate AND (:status IS NULL OR r.reportStatus = :status)")
+    Long findTotalReportByStatus(@Param("status") ReportStatus reportStatus,@Param("fromDate") LocalDateTime from,@Param("endDate") LocalDateTime endTo);
+
+    @Query("select r from Report r where r.actionInitiatedBy = :status")
+    List<Report> findReports(@Param("status") ActionInitiatedBy actionInitiatedBy);
+
 }

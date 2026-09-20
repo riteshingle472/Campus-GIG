@@ -13,7 +13,7 @@ import java.util.List;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class AdminReportResponseDTO{
+public class ReportResponseDTO{
    private Long id;
    private String reason;
    private String description;

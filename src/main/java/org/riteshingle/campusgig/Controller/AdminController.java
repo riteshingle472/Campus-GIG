@@ -147,7 +147,7 @@ public class AdminController {
     //    Report API
     @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/report")
-    public ResponseEntity<AdminReportResponseDTO> report(@RequestParam Long id) {
+    public ResponseEntity<ReportResponseDTO> report(@RequestParam Long id) {
         return ResponseEntity.ok(adminService.report(id));
     }
 
