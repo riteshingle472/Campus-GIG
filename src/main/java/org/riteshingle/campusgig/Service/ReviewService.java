@@ -16,6 +16,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -25,6 +26,7 @@ public class ReviewService {
     private final ReviewRepository reviewRepository;
     private final ContractRepository contractRepository;
     private final UserEntityRepository userEntityRepository;
+    private final NotificationService notificationService;
 
 //    Create Review
     public void postReview(Long contractId, CreateReviewRequest dto){
@@ -67,6 +69,14 @@ public class ReviewService {
 
         review = reviewRepository.save(review);
         adjustRating(reviewee, review.getRating(), 1);
+
+        notificationService.notify(
+                reviewee,
+                org.riteshingle.campusgig.Enum.NotificationType.NEW_REVIEW,
+                "New Review Received",
+                reviewer.getFirstName() + " has given you a " + review.getRating() + "-star review.",
+                contractId
+        );
     }
 
 //    Delete Review
@@ -139,6 +149,18 @@ public class ReviewService {
                 .rating(review.getRating())
                 .build()
         ).toList();
+    }
+
+    public Optional<ReviewResponseDTO> getMyReview(Long contractId) {
+        UserEntity reviewer = authService.getCurrentProfile();
+
+        return reviewRepository.findByContractIdAndReviewerId(contractId, reviewer.getId())
+                .map(review -> ReviewResponseDTO.builder()
+                        .name(review.getReviewer().getFirstName() + " " + review.getReviewer().getLastName())
+                        .createdAt(review.getCreatedAt())
+                        .comment(review.getComment() == null ? "" : review.getComment())
+                        .rating(review.getRating())
+                        .build());
     }
 
 //    Adjust Rating

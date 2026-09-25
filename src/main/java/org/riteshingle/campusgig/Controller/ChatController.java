@@ -22,4 +22,15 @@ public class ChatController {
     public void sendMessage(@DestinationVariable Long conversationId, @Payload SendMessageRequestDTO request ,  Principal principal) {
         chatService.sendMessage(conversationId, request, principal);
     }
+
+
+    @MessageMapping("/chat/{conversationId}/typing")
+    public void typing(@DestinationVariable Long conversationId, Principal principal) {
+        chatService.broadcastTyping(conversationId, principal);
+    }
+
+    @MessageMapping("/chat/{conversationId}/read")
+    public void markRead(@DestinationVariable Long conversationId, Principal principal) {
+        chatService.markAsRead(conversationId, principal);
+    }
 }

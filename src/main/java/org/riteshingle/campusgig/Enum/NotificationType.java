@@ -1,0 +1,14 @@
+package org.riteshingle.campusgig.Enum;
+
+public enum NotificationType {
+    NEW_PROPOSAL,
+    CONTRACT_CREATED,
+    CONTRACT_STARTED,
+    NEW_MESSAGE,
+    PROGRESS_UPDATED,
+    CONTRACT_COMPLETED,
+    NEW_REVIEW,
+    PAYMENT_RELEASED,
+    CONTRACT_CANCELLED,
+    JOB_STATUS_CHANGED
+}

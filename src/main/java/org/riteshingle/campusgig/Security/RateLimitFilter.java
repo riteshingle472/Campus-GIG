@@ -21,8 +21,8 @@ public class RateLimitFilter extends OncePerRequestFilter {
 
     private Bucket createBucket(){
         Bandwidth limit = Bandwidth.builder()
-                .capacity(10)                     // max 10 requests
-                .refillGreedy(10, Duration.ofMinutes(1)) // every minute
+                .capacity(50)                     // max 10 requests
+                .refillGreedy(50, Duration.ofMinutes(1)) // every minute
                 .build();
 
         return Bucket.builder()
@@ -32,6 +32,12 @@ public class RateLimitFilter extends OncePerRequestFilter {
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
+        // Allow CORS preflight requests to pass through untouched
+        if (request.getMethod().equalsIgnoreCase("OPTIONS")) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
         String ip = request.getRemoteAddr();
 
         Bucket bucket = cache.computeIfAbsent(ip, k -> createBucket());

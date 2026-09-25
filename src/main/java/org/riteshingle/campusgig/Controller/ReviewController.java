@@ -57,4 +57,13 @@ public class ReviewController {
         Pageable pageable = PageRequest.of(pageNumber - 1, size, Sort.Direction.fromString(direction),byFiled);
         return ResponseEntity.ok(reviewService.reviews(pageable));
     }
+
+    @PreAuthorize("hasRole('CLIENT') or hasRole('GIG')")
+    @GetMapping("/review/{contractId}/mine")
+    public ResponseEntity<ReviewResponseDTO> getMyReview(@PathVariable Long contractId) {
+        return reviewService.getMyReview(contractId)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.noContent().build());
+    }
+
 }

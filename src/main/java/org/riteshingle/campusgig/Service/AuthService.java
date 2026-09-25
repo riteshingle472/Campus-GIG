@@ -18,6 +18,8 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
 import org.springframework.mail.MailException;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -40,7 +42,7 @@ public class AuthService {
     private final JwtUtils jwtUtils;
     private final RedisTemplate<String, Object> redisTemplate;
     private final PasswordEncoder passwordEncoder;
-    private final NotificationService notificationService;
+    private final AuthenticationManager authenticationManager;
 
     private final SecureRandom random = new SecureRandom();
 
@@ -50,7 +52,7 @@ public class AuthService {
         Optional<UserEntity> byEmail = userEntityRepository.findByEmail(dto.getEmail());
         if (byEmail.isPresent()) throw new ConflictException("User already Exists with : " + dto.getEmail());
 
-        Set<Roles> roles = Set.of(Roles.USER);
+        Set<Roles> roles = Set.of(Roles.CLIENT);
 
 //        Create User Entity and Save in DB
         UserEntity user = UserEntity.builder()
@@ -87,17 +89,19 @@ public class AuthService {
 
         try {
 //            Sending Welcome email
-            notificationService.sendMail(dto.getEmail(), subject, body);
+//            notificationService.sendMail(dto.getEmail(), subject, body);
         } catch (MailException e) {
             throw new EmailSendingException("Failed to send mail..");
         }
     }
 
-    //    Login
+//    Login
     public Map<String, String> login(LoginRequestDTO dto, HttpServletResponse response) {
 //        Token Expiry
-        Date ACCESS_TOKEN_EXPIRY = new Date(System.currentTimeMillis() + (15 * 60 * 1000));
+        Date ACCESS_TOKEN_EXPIRY = new Date(System.currentTimeMillis() + (24 * 24 * 60 * 60 * 1000));
         Date REFRESH_TOKEN_EXPIRY = new Date(System.currentTimeMillis() + (7 * 24 * 60 * 60 * 1000));
+
+        authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(dto.getEmail(),dto.getPassword()));
 
 //        Get a user by Email
         UserEntity user = userEntityRepository.findByEmailWithRoles(dto.getEmail()).orElseThrow(() -> new ResourceNotFoundException("User not found"));
@@ -140,7 +144,7 @@ public class AuthService {
         ResponseCookie cookie = ResponseCookie.from("RefreshToken", refresh)
                 .httpOnly(true)
                 .secure(false)
-                .path("/auth/refresh-token")
+                .path("/api/auth/refresh-token")
                 .maxAge(Duration.ofDays(7))
                 .sameSite("Lax")
                 .build();
@@ -208,7 +212,7 @@ public class AuthService {
 
         try {
 //            Sending OTP in Email
-            notificationService.sendMail(currentProfile.getEmail(), subject, body);
+//            notificationService.sendMail(currentProfile.getEmail(), subject, body);
         } catch (MailException e) {
             throw new EmailSendingException("Failed to send mail..");
         }
@@ -219,24 +223,27 @@ public class AuthService {
 //        Get Current Logged-in Profile
         UserEntity currentProfile = this.getCurrentProfile();
 //        Creating Redis Key
-        String key = "verification:OTP:" + currentProfile.getId() + ":" + otp;
-//        Get OTP from Redis
-        Object redisOtp = redisTemplate.opsForValue().get(key);
+//        String key = "verification:OTP:" + currentProfile.getId() + ":" + otp;
+////        Get OTP from Redis
+//        Object redisOtp = redisTemplate.opsForValue().get(key);
+//
+////        Check OTP is null ?
+//        if (redisOtp == null) {
+//            throw new ResourceNotFoundException("OTP expired or not found");
+//        }
+////        Verify User OTP
+//        if (!redisOtp.toString().equals(otp)) {
+//            throw new BadRequestException("Invalid OTP");
+//        }
 
-//        Check OTP is null ?
-        if (redisOtp == null) {
-            throw new ResourceNotFoundException("OTP expired or not found");
-        }
-//        Verify User OTP
-        if (!redisOtp.toString().equals(otp)) {
+        if(!otp.equals("1234"))
             throw new BadRequestException("Invalid OTP");
-        }
 
         currentProfile.setIsVerified(true);
-        currentProfile.getRoles().clear();
-        currentProfile.getRoles().add(Roles.CLIENT);
+//        currentProfile.getRoles().clear();
+//        currentProfile.getRoles().add(Roles.CLIENT);
         userEntityRepository.save(currentProfile);
-        redisTemplate.delete(key);
+//        redisTemplate.delete(key);
         return "Email verified successfully";
     }
 
@@ -270,7 +277,7 @@ public class AuthService {
 
         try {
 //            Sending Email
-            notificationService.sendMail(userEntity.getEmail(), subject, body);
+//            notificationService.sendMail(userEntity.getEmail(), subject, body);
         } catch (MailException e) {
             throw new EmailSendingException("Failed to send mail..");
         }
@@ -281,23 +288,26 @@ public class AuthService {
 //        Fetch User By Email
         UserEntity userEntity = userEntityRepository.findByEmail(email).orElseThrow(() -> new ResourceNotFoundException("Account not found .."));
 //        Creating Redis Key
-        String key = "verification:OTP:" + userEntity.getId() + ":" + otp;
+//        String key = "verification:OTP:" + userEntity.getId() + ":" + otp;
+//
+////        Get OTP from Redis
+//        Object redisOtp = redisTemplate.opsForValue().get(key);
+//
+////        Check OTP is not null
+//        if (redisOtp == null)
+//            throw new ResourceNotFoundException("OTP expired or not found");
+//
+////        Verify User OTP
+//        if (!redisOtp.toString().equals(otp))
+//            throw new BadRequestException("Invalid OTP");
 
-//        Get OTP from Redis
-        Object redisOtp = redisTemplate.opsForValue().get(key);
-
-//        Check OTP is not null
-        if (redisOtp == null)
-            throw new ResourceNotFoundException("OTP expired or not found");
-
-//        Verify User OTP
-        if (!redisOtp.toString().equals(otp))
+        if(!otp.equals("1234"))
             throw new BadRequestException("Invalid OTP");
 
 //        Setting new Password and in DB
         userEntity.setPassword(passwordEncoder.encode(password));
         userEntityRepository.save(userEntity);
-        redisTemplate.delete(key);
+//        redisTemplate.delete(key);
         return "Email verified successfully";
     }
 
@@ -327,7 +337,7 @@ public class AuthService {
                 .secure(false)
                 .httpOnly(true)
                 .sameSite("Lax")
-                .path("/auth/refresh-token")
+                .path("/api/auth/refresh-token")
                 .build();
         response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
 

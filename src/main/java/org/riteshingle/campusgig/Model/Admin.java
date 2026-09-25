@@ -23,6 +23,10 @@ public class Admin {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(nullable = false)
+    @NotBlank(message = "Full name is required")
+    private String fullName;
+
     @Column(nullable = false,updatable = false)
     @NotBlank(message = "Email is required..")
     private String email;

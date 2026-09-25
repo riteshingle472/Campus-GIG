@@ -26,5 +26,5 @@ public class GigResponseDTO {
     private Integer semester;
     private String description;
     private AvailabilityStatus availabilityStatus;
-    private List<String> gigSkills;
+    private List<SkillResponseDTO> gigSkills;
 }

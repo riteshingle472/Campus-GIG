@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.riteshingle.campusgig.Enum.JobStatus;
 import org.riteshingle.campusgig.Enum.Roles;
 import org.riteshingle.campusgig.Exception.BadRequestException;
+import org.riteshingle.campusgig.Exception.ConflictException;
 import org.riteshingle.campusgig.Exception.ForbiddenException;
 import org.riteshingle.campusgig.Exception.ResourceNotFoundException;
 import org.riteshingle.campusgig.Model.GIG;
@@ -55,7 +56,7 @@ public class BookmarkService {
         Job job = jobRepository.findById(jobId).orElseThrow(() -> new ResourceNotFoundException("Job not found with job id : "+jobId));
 
 //        Check Job is already saved By GIG
-        if(saveJobRepository.existsByGigIdAndJobId(gig.getId(), jobId)) throw new ResourceNotFoundException("Job already saved");
+        if(saveJobRepository.existsByGigIdAndJobId(gig.getId(), jobId)) throw new ConflictException("Job already saved");
 //        Check Job Deadline ,You can't save Expire Job
         if(job.getDeadline().isBefore(LocalDate.now())) throw new BadRequestException("Cannot save expired job");
 //        Check Job status

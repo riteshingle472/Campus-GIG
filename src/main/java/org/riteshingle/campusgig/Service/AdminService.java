@@ -3,10 +3,7 @@ package org.riteshingle.campusgig.Service;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.riteshingle.campusgig.Enum.*;
-import org.riteshingle.campusgig.Exception.BadRequestException;
-import org.riteshingle.campusgig.Exception.ConflictException;
-import org.riteshingle.campusgig.Exception.InvalidStatusException;
-import org.riteshingle.campusgig.Exception.ResourceNotFoundException;
+import org.riteshingle.campusgig.Exception.*;
 import org.riteshingle.campusgig.JwtUtils.JwtUtils;
 import org.riteshingle.campusgig.Model.*;
 import org.riteshingle.campusgig.Repository.*;
@@ -16,6 +13,8 @@ import org.riteshingle.campusgig.ResponseDTO.*;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -43,6 +42,7 @@ public class AdminService {
     private final JwtUtils jwtUtils;
     private final AdminRefreshTokenRepository adminRefreshTokenRepository;
     private final AdminRepository adminRepository;
+    private final AuthenticationManager authenticationManager;
 
 //    Register User
     public void register(AdminAuthDTO dto)  {
@@ -58,6 +58,7 @@ public class AdminService {
         Admin admin = Admin.builder()
                 .password(passwordEncoder.encode(dto.getPassword()))
                 .email(dto.getEmail())
+                .fullName(dto.getFullName())      // NEW
                 .roles(roles)
                 .adminStatus(AdminStatus.ACTIVE)
                 .adminAccessStatus(AdminAccessStatus.PENDING)
@@ -71,8 +72,20 @@ public class AdminService {
         Date ACCESS_TOKEN_EXPIRY = new Date(System.currentTimeMillis() + (15 * 60 * 1000));
         Date REFRESH_TOKEN_EXPIRY = new Date(System.currentTimeMillis() + (7 * 24 * 60 * 60 * 1000));
 
+        authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(dto.getEmail(),dto.getPassword()));
+
+
 //        Get a user by Email
         Admin admin = adminRepository.findByEmail(dto.getEmail()).orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+//        NEW: enforce access approval status — PENDING/DENIAL admins cannot log in
+        if (admin.getAdminAccessStatus() == AdminAccessStatus.PENDING) {
+            throw new UnauthorizedException("Your admin access is still pending approval");
+        }
+        if (admin.getAdminAccessStatus() == AdminAccessStatus.DENIAL) {
+            throw new UnauthorizedException("Your admin access request was denied");
+        }
+
 //        Get RefreshToken By user
         Optional<AdminRefreshToken> byAdmin = adminRefreshTokenRepository.findByAdmin(admin);
         AdminRefreshToken adminRefreshToken;
@@ -217,6 +230,14 @@ public class AdminService {
         LocalDateTime startFrom = from == null ? LocalDate.now().atStartOfDay() : from.atStartOfDay();
         LocalDateTime endTo = to == null ? LocalDateTime.now() : to.atTime(LocalTime.MAX);
 
+        if (startFrom.isAfter(LocalDateTime.now())) {
+            throw new BadRequestException("From date cannot be a future date");
+        }
+
+        if (endTo.isAfter(LocalDateTime.now().plusDays(1))) {
+            throw new BadRequestException("To date cannot be a future date");
+        }
+
 //        Fetch all Job Category and their count
         List<Object[]> popularJob = jobRepository.findPopularJobCategories(startFrom, endTo);
 
@@ -241,7 +262,7 @@ public class AdminService {
         LocalDateTime endTo = LocalDateTime.now();
 
         if (startFrom.isAfter(LocalDateTime.now())) {
-            throw new RuntimeException("From date cannot be a future date");
+            throw new BadRequestException("From date cannot be a future date");
         }
 
 //         Fetch daily growth data for users, gigs, clients, jobs and applications

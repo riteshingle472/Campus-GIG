@@ -3,6 +3,8 @@ package org.riteshingle.campusgig.Repository;
 import org.riteshingle.campusgig.Enum.ActionInitiatedBy;
 import org.riteshingle.campusgig.Enum.ReportStatus;
 import org.riteshingle.campusgig.Model.Report;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -20,6 +22,6 @@ public interface ReportRepository extends JpaRepository<Report, Long> {
     Long findTotalReportByStatus(@Param("status") ReportStatus reportStatus,@Param("fromDate") LocalDateTime from,@Param("endDate") LocalDateTime endTo);
 
     @Query("select r from Report r where r.actionInitiatedBy = :status")
-    List<Report> findReports(@Param("status") ActionInitiatedBy actionInitiatedBy);
+    List<Report> findReports(@Param("status") ActionInitiatedBy actionInitiatedBy, Pageable pageable);
 
 }

@@ -16,6 +16,8 @@ import org.riteshingle.campusgig.Repository.MessageRepository;
 import org.riteshingle.campusgig.Repository.UserEntityRepository;
 import org.riteshingle.campusgig.RequestDTO.SendMessageRequestDTO;
 import org.riteshingle.campusgig.ResponseDTO.MessageResponse;
+import org.riteshingle.campusgig.ResponseDTO.ReadEvent;
+import org.riteshingle.campusgig.ResponseDTO.TypingEvent;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,6 +33,7 @@ public class ChatService {
     private final MessageRepository messageRepository;
     private final SimpMessagingTemplate messagingTemplate;
     private final UserEntityRepository userEntityRepository;
+    private final NotificationService notificationService;
 
 
     @Transactional
@@ -87,6 +90,18 @@ public class ChatService {
                 saveMessage.getSentAt()
         );
 
+        UserEntity recipient = isClient
+                ? contract.getGig().getUser()
+                : contract.getClient();
+
+        notificationService.notify(
+                recipient,
+                org.riteshingle.campusgig.Enum.NotificationType.NEW_MESSAGE,
+                "New Message",
+                currentProfile.getFirstName() + " sent you a new message.",
+                conversationId
+        );
+
 //        Delivered message to the Subscriber
         messagingTemplate.convertAndSend("/topic/chat/" + conversationId, response);
     }
@@ -121,5 +136,31 @@ public class ChatService {
                                 message.getSentAt())
                 )
                 .toList();
+    }
+
+    public void broadcastTyping(Long conversationId, Principal principal) {
+        String email = principal.getName();
+        UserEntity user = userEntityRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        messagingTemplate.convertAndSend(
+                "/topic/chat/" + conversationId + "/typing",
+                new TypingEvent(user.getId(), user.getFirstName())
+        );
+    }
+
+    @Transactional
+    public void markAsRead(Long conversationId, Principal principal) {
+        String email = principal.getName();
+        UserEntity currentProfile = userEntityRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        int updated = messageRepository.markAllAsRead(conversationId, currentProfile.getId());
+        if (updated > 0) {
+            messagingTemplate.convertAndSend(
+                    "/topic/chat/" + conversationId + "/read",
+                    new ReadEvent(conversationId, currentProfile.getId())
+            );
+        }
     }
 }

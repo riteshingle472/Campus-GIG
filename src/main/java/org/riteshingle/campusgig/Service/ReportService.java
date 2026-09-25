@@ -9,6 +9,7 @@ import org.riteshingle.campusgig.Model.*;
 import org.riteshingle.campusgig.Repository.*;
 import org.riteshingle.campusgig.RequestDTO.ReportRequestDTO;
 import org.riteshingle.campusgig.ResponseDTO.ReportResponseDTO;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,10 +23,16 @@ public class ReportService {
     private final AuthService authService;
 
     public void report(ReportRequestDTO dto) {
+//        Get current Logged-in Profile
         UserEntity currentProfile = authService.getCurrentProfile();
+//        Get Contract by ID
         Contract contract = contractRepository.findById(dto.getContractId())
                 .orElseThrow(() -> new ResourceNotFoundException("Contract not found..."));
 
+        if (!contract.getContractStatus().equals(ContractStatus.ACTIVE) && !contract.getContractStatus().equals(ContractStatus.COMPLETE))
+            throw new InvalidStatusException("Report can only be submitted for an active or completed contract");
+
+//        Get GIG and Client from Contract
         GIG gig = contract.getGig();
         UserEntity client = contract.getClient();
         ActionInitiatedBy reportedBy;
@@ -36,9 +43,12 @@ public class ReportService {
             reportedBy = ActionInitiatedBy.GIG;
         }else throw new ForbiddenException("You are not a participant of this contract");
 
-
-        ReportReason reportReason = ReportReason.valueOf(dto.getReportReasonStatus().trim().toUpperCase());
-
+        ReportReason reportReason;
+        try {
+            reportReason = ReportReason.valueOf(dto.getReportReasonStatus().trim().toUpperCase());
+        }catch (Exception e){
+            throw new InvalidStatusException("Report Reason is not valid...");
+        }
         Report report = Report.builder()
                 .gig(gig)
                 .client(client)
@@ -54,7 +64,7 @@ public class ReportService {
     }
 
     @Transactional
-    public List<ReportResponseDTO> reports(){
+    public List<ReportResponseDTO> reports(Pageable pageable){
 //        Get Current Logged-in Profile
         UserEntity currentProfile = authService.getCurrentProfile();
         Roles roles = currentProfile.getRoles().iterator().next();
@@ -65,9 +75,9 @@ public class ReportService {
 
         List<Report> reports;
         if(roles.equals(Roles.GIG)){
-            reports = reportRepository.findReports(ActionInitiatedBy.GIG);
+            reports = reportRepository.findReports(ActionInitiatedBy.GIG,pageable);
         }else {
-            reports = reportRepository.findReports(ActionInitiatedBy.CLIENT);
+            reports = reportRepository.findReports(ActionInitiatedBy.CLIENT,pageable);
         }
 
         return reports.stream()

@@ -5,6 +5,8 @@ import lombok.RequiredArgsConstructor;
 import org.riteshingle.campusgig.RequestDTO.ReportRequestDTO;
 import org.riteshingle.campusgig.ResponseDTO.ReportResponseDTO;
 import org.riteshingle.campusgig.Service.ReportService;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -29,7 +31,9 @@ public class ReportController {
     //    Report
     @PreAuthorize("hasRole('CLIENT') or hasRole('GIG')")
     @GetMapping("/reports")
-    public ResponseEntity<List<ReportResponseDTO>> reports(){
-        return ResponseEntity.ok(reportService.reports());
+    public ResponseEntity<List<ReportResponseDTO>> reports( @RequestParam(required = false, defaultValue = "1") int page,
+                                                            @RequestParam(required = false, defaultValue = "20") int size) {
+        Pageable pageable = PageRequest.of(page - 1, size);
+        return ResponseEntity.ok(reportService.reports(pageable));
     }
 }

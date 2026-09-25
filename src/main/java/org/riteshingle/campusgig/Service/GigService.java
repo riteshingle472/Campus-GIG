@@ -12,7 +12,9 @@ import org.riteshingle.campusgig.RequestDTO.BecomeGigRequestDTO;
 import org.riteshingle.campusgig.RequestDTO.JobApplicationFilterAndSortingRequestDTO;
 import org.riteshingle.campusgig.RequestDTO.JobApplicationRequestDTO;
 import org.riteshingle.campusgig.RequestDTO.UpdateJobApplicationRequestDTO;
+import org.riteshingle.campusgig.ResponseDTO.GigResponseDTO;
 import org.riteshingle.campusgig.ResponseDTO.JobApplicationSortingAndFilteringResponseDTO;
+import org.riteshingle.campusgig.ResponseDTO.SkillResponseDTO;
 import org.riteshingle.campusgig.Specification.GigSpecification;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -34,6 +36,7 @@ public class GigService {
     private final UserEntityRepository userEntityRepository;
     private final SkillsRepository skillsRepository;
     private final GigRepository gigRepository;
+    private final NotificationService notificationService;
     private final JobRepository jobRepository;
 
 //    Add User Skills
@@ -41,14 +44,13 @@ public class GigService {
     public void addSkills(List<Long> skillIds) {
 //        Get current profile
         UserEntity currentProfile = authService.getCurrentProfile();
-        Roles roles = currentProfile.getRoles().iterator().next();
 
 //        Check user is verified or not
         if(!currentProfile.getIsVerified())
             throw new ForbiddenException("User is not verified ..");
 
 //        Check gig
-        if(!roles.equals(Roles.GIG)) throw new ForbiddenException("Only gig can add skills ..");
+        if(!currentProfile.getRoles().contains(Roles.GIG)) throw new ForbiddenException("Only gig can add skills ..");
 
         GIG gig = currentProfile.getGig();
 
@@ -137,6 +139,140 @@ public class GigService {
 
     }
 
+//    Get GIG Profile
+    public GigResponseDTO getMyGigProfile() {
+//        Get Current Logged-in profile
+        UserEntity currentProfile = authService.getCurrentProfile();
+
+        // Check user is verified
+        if (!currentProfile.getIsVerified())
+            throw new ForbiddenException("User is not verified ..");
+
+//        Check ( ) -> Current Profile is GIG or not ?
+        if(currentProfile.getGig() == null)
+            throw new ResourceNotFoundException("Gig profile not found ..");
+
+        // Get current user's GIG profile
+        GIG gig = currentProfile.getGig();
+
+//        Convert GIG skills in Skill Response DTO
+        List<SkillResponseDTO> skills = gig.getUserSkills().stream()
+                .map(us -> SkillResponseDTO.builder()
+                        .id(us.getSkill().getId())
+                        .skill(us.getSkill().getSkill())
+                        .build())
+                .toList();
+
+        return GigResponseDTO.builder()
+                .id(gig.getId())
+                .gigFirstName(currentProfile.getFirstName())
+                .gigLastName(currentProfile.getLastName())
+                .gigEmail(currentProfile.getEmail())
+                .gigPhoneNumber(currentProfile.getPhoneNumber())
+                .title(gig.getTitle())
+                .jobCategory(gig.getJobCategory().name())
+                .description(gig.getDescription())
+                .availabilityStatus(gig.getAvailabilityStatus())
+                .college(gig.getCollege())
+                .department(gig.getDepartment())
+                .semester(gig.getSemester())
+                .gigSkills(skills)
+                .build();
+    }
+
+//    Get GIG By ID
+    public GigResponseDTO getGigProfileById(Long gigId) {
+//        Get GIG by ID
+        GIG gig = gigRepository.findById(gigId).orElseThrow(() -> new ResourceNotFoundException("Gig not found with ID: " + gigId));
+        UserEntity user = gig.getUser();
+
+//        Convert GIG skills in skill Respone DTO
+        List<SkillResponseDTO> skills = gig.getUserSkills().stream()
+                .map(us -> SkillResponseDTO.builder()
+                        .id(us.getSkill().getId())
+                        .skill(us.getSkill().getSkill())
+                        .build())
+                .toList();
+
+        return GigResponseDTO.builder()
+                .id(gig.getId())
+                .gigFirstName(user.getFirstName())
+                .gigLastName(user.getLastName())
+//                .gigEmail(user.getEmail())
+//                .gigPhoneNumber(user.getPhoneNumber())
+                .title(gig.getTitle())
+                .jobCategory(gig.getJobCategory().name())
+                .description(gig.getDescription())
+                .availabilityStatus(gig.getAvailabilityStatus())
+                .college(gig.getCollege())
+                .department(gig.getDepartment())
+                .semester(gig.getSemester())
+                .gigSkills(skills)
+                .build();
+    }
+
+//    Edit GIG Profile
+    @Transactional
+    public void editGigProfile(BecomeGigRequestDTO dto) {
+//        Get Current Logged-in Profile
+        UserEntity currentProfile = authService.getCurrentProfile();
+
+        // Check user is verified
+        if (!currentProfile.getIsVerified()) {
+            throw new ForbiddenException("User is not verified ..");
+        }
+
+        if (currentProfile.getGig() == null) {
+            throw new ResourceNotFoundException("Gig profile not found ..");
+        }
+
+        // Get existing GIG profile
+        GIG gig = currentProfile.getGig();
+
+        // Update title
+        if (dto.getTitle() != null)
+            gig.setTitle(dto.getTitle());
+
+        // Update Job Category
+        if (dto.getJobCategory() != null) {
+            try {
+                JobCategory jobCategory = JobCategory.valueOf(dto.getJobCategory().trim().toUpperCase());
+                gig.setJobCategory(jobCategory);
+            } catch (IllegalArgumentException e) {
+                throw new InvalidStatusException("Invalid Job Category..");
+            }
+        }
+
+        // Update Availability Status
+        if (dto.getAvailabilityStatus() != null) {
+            try {
+                AvailabilityStatus availabilityStatus =AvailabilityStatus.valueOf(dto.getAvailabilityStatus().trim().toUpperCase());
+                gig.setAvailabilityStatus(availabilityStatus);
+            } catch (IllegalArgumentException e) {
+                throw new InvalidStatusException("Invalid Availability Status..");
+            }
+        }
+
+        // Update Description
+        if (dto.getDescription() != null)
+            gig.setDescription(dto.getDescription());
+
+        // Update College
+        if (dto.getCollege() != null)
+            gig.setCollege(dto.getCollege());
+
+        // Update Department
+        if (dto.getDepartment() != null)
+            gig.setDepartment(dto.getDepartment());
+
+        // Update Semester
+        if (dto.getSemester() != null)
+            gig.setSemester(dto.getSemester());
+
+        // Save existing GIG
+        gigRepository.save(gig);
+    }
+
 //    Job Proposal
     public void applyForJob(JobApplicationRequestDTO dto){
         UserEntity currentProfile = authService.getCurrentProfile();
@@ -176,9 +312,10 @@ public class GigService {
 
             if (application.getJobApplicationStatus() == JobApplicationStatus.REJECTED ||
                     application.getJobApplicationStatus() == JobApplicationStatus.SHORTLISTED ||
+                    application.getJobApplicationStatus() == JobApplicationStatus.WITHDRAWN ||
                     application.getJobApplicationStatus() == JobApplicationStatus.ACCEPTED) {
 
-                throw new InvalidStatusException("You cannot apply for job because your job application is : " + application.getJobApplicationStatus());
+                throw new InvalidStatusException("You cannot apply for job because your job application is already : " + application.getJobApplicationStatus());
             }
         }
 
@@ -193,6 +330,13 @@ public class GigService {
                 .build();
 
         jobApplicationRepository.save(newJobApplication);
+        notificationService.notify(
+                job.getClient(),
+                NotificationType.NEW_PROPOSAL,
+                "New Job Proposal",
+                currentProfile.getFirstName() + " has submitted a proposal for \"" + job.getTitle() + "\".",
+                newJobApplication.getId()
+        );
     }
 
 //    Withdraw Job Proposal By Job ID
@@ -229,7 +373,13 @@ public class GigService {
 //        Save Application in DB
         jobApplication.setJobApplicationStatus(JobApplicationStatus.WITHDRAWN);
         jobApplicationRepository.save(jobApplication);
-
+        notificationService.notify(
+                job.getClient(),
+                NotificationType.CONTRACT_CANCELLED,
+                "Proposal Withdrawn",
+                gig.getUser().getFirstName() + " has withdrawn their proposal for \"" + job.getTitle() + "\".",
+                jobApplication.getId()
+        );
     }
 
 //    Update Job Proposal
@@ -324,6 +474,14 @@ public class GigService {
 
         jobApplication.setJobApplicationStatus(JobApplicationStatus.WITHDRAWN);
         jobApplicationRepository.save(jobApplication);
+        notificationService.notify(
+                jobApplication.getJob().getClient(),
+                NotificationType.CONTRACT_CANCELLED,
+                "Proposal Withdrawn",
+                currentProfile.getFirstName() + " has withdrawn their proposal for \""
+                        + jobApplication.getJob().getTitle() + "\".",
+                jobApplication.getId()
+        );
     }
 
 //    Get All Job Application

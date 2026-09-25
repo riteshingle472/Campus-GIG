@@ -10,6 +10,7 @@ import org.riteshingle.campusgig.RequestDTO.JobRequestDTO;
 import org.riteshingle.campusgig.ResponseDTO.GigResponseDTO;
 import org.riteshingle.campusgig.ResponseDTO.JobApplicantResponseDTO;
 import org.riteshingle.campusgig.ResponseDTO.JobResponseDTO;
+import org.riteshingle.campusgig.ResponseDTO.SkillResponseDTO;
 import org.riteshingle.campusgig.Specification.JobSpecification;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -38,6 +39,7 @@ public class JobService {
     private final ContractRepository contractRepository;
     private final ConversationRepository conversationRepository;
     private final RedisTemplate<String, Object> redisTemplate;
+    private final NotificationService notificationService;
 
 //    For -> client
 //    publish Job
@@ -433,6 +435,14 @@ public class JobService {
 //        Create Conversation for Chatting
         Conversation conversation = Conversation.builder().contract(contract).build();
         conversationRepository.save(conversation);
+
+        notificationService.notify(
+                contract.getGig().getUser(),
+                NotificationType.CONTRACT_CREATED,
+                "New Contract Created",
+                "A new contract has been created for \"" + job.getTitle() + "\"",
+                contract.getId()
+        );
     }
 
 //    Reject Job Proposal
@@ -456,6 +466,31 @@ public class JobService {
 
 //        Set Application status Reject and save in DB
         jobApplication.setJobApplicationStatus(JobApplicationStatus.REJECTED);
+        jobApplicationRepository.save(jobApplication);
+    }
+
+
+//    For -> client
+//    Shortlist Job Application
+    public void shortlistJobProposal(Long applicationId) {
+        UserEntity client = authService.getCurrentProfile();
+        JobApplication jobApplication = jobApplicationRepository.findById(applicationId)
+                .orElseThrow(() -> new ResourceNotFoundException("Job application not found .."));
+
+        Long clientId = jobApplication.getJob().getClient().getId();
+
+        if (!client.getId().equals(clientId)) {
+            throw new ForbiddenException("You're not authorized to shortlist this proposal ..");
+        }
+
+        if (jobApplication.getJobApplicationStatus().equals(JobApplicationStatus.REJECTED)
+                || jobApplication.getJobApplicationStatus().equals(JobApplicationStatus.ACCEPTED)
+                || jobApplication.getJobApplicationStatus().equals(JobApplicationStatus.WITHDRAWN)
+                || jobApplication.getJobApplicationStatus().equals(JobApplicationStatus.SHORTLISTED)) {
+            throw new InvalidStatusException("Job Proposal is already " + jobApplication.getJobApplicationStatus() + "..");
+        }
+
+        jobApplication.setJobApplicationStatus(JobApplicationStatus.SHORTLISTED);
         jobApplicationRepository.save(jobApplication);
     }
 
@@ -562,7 +597,13 @@ public class JobService {
                 .build();
 
         List<String> skills = userSkillsRepository.findSkillByGigId(gig.getId());
-        gigResponseDTO.setGigSkills(skills);
+        List<SkillResponseDTO> skillResponseDTOS = skills.stream()
+                .map(skillName -> SkillResponseDTO.builder()
+                        .skill(skillName)
+                        .build())
+                .toList();
+
+        gigResponseDTO.setGigSkills(skillResponseDTOS);
 
         return JobApplicantResponseDTO.builder()
                 .jobApplicationStatus(jobApplication.getJobApplicationStatus().name())

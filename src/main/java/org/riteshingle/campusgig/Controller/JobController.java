@@ -125,7 +125,7 @@ public class JobController {
     @GetMapping("/my-jobs")
     public ResponseEntity<List<JobResponseDTO>> getJobsPostByMe(@RequestParam(required = false,defaultValue = "OPEN") String status, @RequestParam(required = false, defaultValue = "1") int page,
                                                                 @RequestParam(required = false, defaultValue = "10") int size,
-                                                                @RequestParam(required = false, defaultValue = "ASCE") String direction,
+                                                                @RequestParam(required = false, defaultValue = "ASC") String direction,
                                                                 @RequestParam(required = false, defaultValue = "publishAt") String field){
         Pageable pageable = PageRequest.of(page - 1, size, Sort.Direction.fromString(direction), field);
         return ResponseEntity.ok(jobService.getAllJobsPostByMe(status, pageable));
@@ -152,6 +152,15 @@ public class JobController {
     @PatchMapping("/reject-proposal")
     public ResponseEntity<?> rejectJobApplication(@RequestParam Long applicationId) {
         jobService.rejectJobProposal(applicationId);
+        return ResponseEntity.noContent().build();
+    }
+
+    //    For -> Client
+    //    Shortlist a proposal
+    @PreAuthorize("hasRole('CLIENT')")
+    @PatchMapping("/shortlist-proposal")
+    public ResponseEntity<?> shortlistJobApplication(@RequestParam Long applicationId) {
+        jobService.shortlistJobProposal(applicationId);
         return ResponseEntity.noContent().build();
     }
 }

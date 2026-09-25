@@ -1,6 +1,8 @@
 package org.riteshingle.campusgig.Service;
 
 import lombok.RequiredArgsConstructor;
+import org.apache.commons.lang3.Validate;
+import org.hibernate.annotations.processing.Find;
 import org.riteshingle.campusgig.Enum.*;
 import org.riteshingle.campusgig.Exception.*;
 import org.riteshingle.campusgig.Model.*;
@@ -22,6 +24,7 @@ import java.util.List;
 public class ContractService {
     private final ContractRepository contractRepository;
     private final AuthService authService;
+    private final NotificationService notificationService;
 
 //    Create Contract
     public Contract createContract(Job job, JobApplication jobApplication){
@@ -49,11 +52,9 @@ public class ContractService {
 
 //        Get Current Logged-in Profile
         UserEntity currentProfile = authService.getCurrentProfile();
-//        Get User Role
-        Roles roles = currentProfile.getRoles().iterator().next();
 
-//        Check ( ) ->  GIG Role
-        if(!roles.equals(Roles.GIG)) throw new ResourceNotFoundException("Only GIG can Change the project progress..");
+        if(!currentProfile.getRoles().contains(Roles.GIG))
+            throw new ForbiddenException("Only GIG can change the project progress..");
 
 //        Check ( ) ->  Contract is Active
         if(!contract.getContractStatus().equals(ContractStatus.ACTIVE))
@@ -70,6 +71,13 @@ public class ContractService {
 //        Set status and save in DB
         contract.setProgressStatus(progress);
         contractRepository.save(contract);
+        notificationService.notify(
+                contract.getClient(),
+                NotificationType.PROGRESS_UPDATED,
+                "Project Progress Updated",
+                "The progress of \"" + contract.getJob().getTitle() + "\" has been updated to " + progress.name(),
+                contract.getId()
+        );
     }
 
 //    All Contracts
@@ -95,7 +103,11 @@ public class ContractService {
         LocalDateTime endTo = to == null ? LocalDate.now().atTime(LocalTime.MAX) : to.atTime(LocalTime.MAX);
 
 //        Contract status
-        ContractStatus contractStatus = keyword == null ? null : ContractStatus.valueOf(keyword.trim().toUpperCase());
+        ContractStatus contractStatus = null;
+        if (keyword != null)
+            try {contractStatus = ContractStatus.valueOf(keyword.trim().toUpperCase());}
+            catch (Exception e) {throw new InvalidStatusException("Invalid contract status: " + keyword);}
+
 //        Get Contract
         List<Contract> contracts = contractRepository.findMyContracts(currentProfile,contractStatus,startFrom,endTo,pageable);
         return contracts.stream().map(this::contractDetailsResponseDTO).toList();
@@ -191,22 +203,22 @@ public class ContractService {
 //    Cancel and Withdrawn Contract
     @Transactional
     public void cancelOrWithdrawnContract(Long contractId,ContractCancelOrWithdrawnRequestDTO dto) {
-        // Find Contract
+//        Find Contract
         Contract contract = contractRepository.findById(contractId).orElseThrow(() ->new ResourceNotFoundException("Contract not found by ID : " + contractId));
 
-        // Current logged-in user
+//        Current logged-in user
         UserEntity currentProfile = authService.getCurrentProfile();
 
-        // Contract already completed
+//        Contract already completed
         if (contract.getContractStatus() == ContractStatus.COMPLETE) {
             throw new InvalidStatusException("Contract is already completed");
         }
 
-        // Check actual relationship with contract
+//        Check actual relationship with contract
         boolean isClient = contract.getClient().getId().equals(currentProfile.getId());
         boolean isGig = contract.getGig().getUser().getId().equals(currentProfile.getId());
 
-        // User is neither Client nor GIG of this contract
+//        User is neither Client nor GIG of this contract
         if (contract.getContractStatus() == ContractStatus.PENDING) {
             if (isClient) {
                 contract.setContractStatus(ContractStatus.WITHDRAWN);
@@ -226,10 +238,10 @@ public class ContractService {
                 throw new ForbiddenException("You are not authorized for this contract"   );
             }
         } else {
-            throw new InvalidStatusException("Contract cannot be cancelled in current status: " + contract.getContractStatus());
+            throw new InvalidStatusException("You can't break Contract is already : " + contract.getContractStatus());
         }
 
-        // Validate cancellation reason
+//         Validate cancellation reason
         ContractCancelReason contractCancelReason;
         try {
             contractCancelReason = ContractCancelReason.valueOf(dto.getReason().trim().toUpperCase());
@@ -237,19 +249,19 @@ public class ContractService {
             throw new InvalidStatusException("Invalid Cancel reason : " + dto.getReason());
         }
 
-        // Set cancellation details
+//        Set cancellation details
         contract.setCancelReason(contractCancelReason);
         contract.setCancelledAt(LocalDateTime.now());
         contract.setCancellationRemark(dto.getRemark());
 
-        // Save changes
+//        Save changes in DB
         contractRepository.save(contract);
     }
 
 //   Helper methods
     private ContractDetailsResponseDTO contractDetailsResponseDTO(Contract contract){
-        String client = contract.getClient().getFirstName()+contract.getClient().getLastName();
-        String gig = contract.getGig().getUser().getFirstName()+contract.getGig().getUser().getLastName();
+        String client = contract.getClient().getFirstName()+" "+contract.getClient().getLastName();
+        String gig = contract.getGig().getUser().getFirstName()+" "+contract.getGig().getUser().getLastName();
         return ContractDetailsResponseDTO.builder()
                 .contractId(contract.getId())
                 .gigName(gig)

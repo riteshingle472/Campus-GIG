@@ -64,13 +64,13 @@ public class AdminController {
         return ResponseEntity.ok(adminService.growthChart(from,to));
     }
 
-//    Admin Mail Service
-    @PreAuthorize("hasRole('ADMIN')")
-    @PostMapping("/mail")
-    public ResponseEntity<?> sendMail(@RequestBody AdminSendMailRequestDTO requestDTO) {
-        adminService.adminMail(requestDTO);
-        return ResponseEntity.noContent().build();
-    }
+////    Admin Mail Service
+//    @PreAuthorize("hasRole('ADMIN')")
+//    @PostMapping("/mail")
+//    public ResponseEntity<?> sendMail(@RequestBody AdminSendMailRequestDTO requestDTO) {
+//        adminService.adminMail(requestDTO);
+//        return ResponseEntity.noContent().build();
+//    }
 
     //    GIGs API
     @PreAuthorize("hasRole('ADMIN')")

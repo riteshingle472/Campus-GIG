@@ -2,6 +2,7 @@ package org.riteshingle.campusgig.Controller;
 
 import lombok.RequiredArgsConstructor;
 import org.riteshingle.campusgig.RequestDTO.*;
+import org.riteshingle.campusgig.ResponseDTO.GigResponseDTO;
 import org.riteshingle.campusgig.ResponseDTO.JobApplicationSortingAndFilteringResponseDTO;
 import org.riteshingle.campusgig.Service.GigService;
 import org.springframework.data.domain.PageRequest;
@@ -62,11 +63,33 @@ public class GigController {
 
 //    All Proposals ( ) -> GIG
     @PreAuthorize("hasRole('GIG')")
-    @GetMapping("/proposals ")
+    @GetMapping("/proposals")
     public ResponseEntity<List<JobApplicationSortingAndFilteringResponseDTO>> getAllJobApplication(@RequestBody JobApplicationFilterAndSortingRequestDTO dto,
                                                                                                    @RequestParam(required = false,defaultValue = "10") int pageSize,
                                                                                                    @RequestParam(required = false,defaultValue = "1") int pageNumber){
         Pageable pageable = PageRequest.of(pageNumber - 1, pageSize);
         return ResponseEntity.ok(gigService.getAllJobApplication(dto,pageable));
+    }
+
+    @PreAuthorize("hasRole('GIG')")
+    @GetMapping("/profile")
+    public ResponseEntity<GigResponseDTO> getMyGigProfile() {
+        return ResponseEntity.ok(gigService.getMyGigProfile());
+    }
+
+    @PreAuthorize("hasRole('GIG')")
+    @PatchMapping("/profile")
+    public ResponseEntity<?> editGigProfile(@RequestBody BecomeGigRequestDTO dto) {
+        gigService.editGigProfile(dto);
+        return ResponseEntity.noContent().build();
+
+    }
+
+//    Change : GIG Profile URL change
+//    Becaue Hibernate get confuse in URLs and try to convert proposal into gig id
+    @PreAuthorize("hasRole('CLIENT') or hasRole('GIG')")
+    @GetMapping("/profile/{gigId}")
+    public ResponseEntity<GigResponseDTO> getGigProfileById(@PathVariable Long gigId) {
+        return ResponseEntity.ok(gigService.getGigProfileById(gigId));
     }
 }
