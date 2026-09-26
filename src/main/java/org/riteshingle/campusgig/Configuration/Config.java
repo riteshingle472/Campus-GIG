@@ -45,11 +45,7 @@ public class Config {
     private final CustomUserDetailsService customUserDetailsService;
     private final CustomAdminUserDetailsService customAdminUserDetailsService;
 
-
-    // =========================================================
-    // SECURITY FILTER CHAIN
-    // =========================================================
-
+//    Filter Chain
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         // Disable CSRF for REST API
@@ -76,16 +72,13 @@ public class Config {
                                 "/swagger-ui.html",
                                 "/swagger-ui/**"
                         ).permitAll()
-
                         // Serve uploaded profile images publicly
                         .requestMatchers("/uploads/**").permitAll()
                         // Everything else requires authentication
                         .anyRequest().authenticated()
                 )
-
                 // Stateless authentication
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-
                 // JWT filter
                 .addFilterBefore(jwtRequestFilter, UsernamePasswordAuthenticationFilter.class)
                 .build();
@@ -123,10 +116,7 @@ public class Config {
         return new ProviderManager(adminAuthenticationProvider());
     }
 
-    // =========================================================
-    // CORS CONFIGURATION
-    // =========================================================
-
+//    CORS CONFIGURATION
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
