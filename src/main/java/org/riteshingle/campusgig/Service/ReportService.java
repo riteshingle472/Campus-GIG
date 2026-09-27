@@ -8,31 +8,33 @@ import org.riteshingle.campusgig.Exception.ResourceNotFoundException;
 import org.riteshingle.campusgig.Model.*;
 import org.riteshingle.campusgig.Repository.*;
 import org.riteshingle.campusgig.RequestDTO.ReportRequestDTO;
+import org.springframework.stereotype.Service;
 import org.riteshingle.campusgig.ResponseDTO.ReportResponseDTO;
 import org.springframework.data.domain.Pageable;
-import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
 @Service
 @RequiredArgsConstructor
+@Transactional
 public class ReportService {
     private final ReportRepository reportRepository;
     private final ContractRepository contractRepository;
     private final AuthService authService;
 
+//    Report
     public void report(ReportRequestDTO dto) {
-//        Get current Logged-in Profile
         UserEntity currentProfile = authService.getCurrentProfile();
-//        Get Contract by ID
         Contract contract = contractRepository.findById(dto.getContractId())
                 .orElseThrow(() -> new ResourceNotFoundException("Contract not found..."));
 
-        if (!contract.getContractStatus().equals(ContractStatus.ACTIVE) && !contract.getContractStatus().equals(ContractStatus.COMPLETE))
+//        Check Contract must ACTIVE/COMPLETE
+        if (!contract.getContractStatus().equals(ContractStatus.ACTIVE) &&
+                !contract.getContractStatus().equals(ContractStatus.COMPLETE)) {
             throw new InvalidStatusException("Report can only be submitted for an active or completed contract");
+        }
 
-//        Get GIG and Client from Contract
         GIG gig = contract.getGig();
         UserEntity client = contract.getClient();
         ActionInitiatedBy reportedBy;
@@ -43,12 +45,15 @@ public class ReportService {
             reportedBy = ActionInitiatedBy.GIG;
         }else throw new ForbiddenException("You are not a participant of this contract");
 
+//        Validate Report Reason
         ReportReason reportReason;
         try {
             reportReason = ReportReason.valueOf(dto.getReportReasonStatus().trim().toUpperCase());
-        }catch (Exception e){
-            throw new InvalidStatusException("Report Reason is not valid...");
+        } catch (Exception e) {
+            throw new InvalidStatusException("Invalid report reason: " + dto.getReportReasonStatus());
         }
+
+//        Create report and save in DB
         Report report = Report.builder()
                 .gig(gig)
                 .client(client)
@@ -63,35 +68,34 @@ public class ReportService {
         reportRepository.save(report);
     }
 
-    @Transactional
-    public List<ReportResponseDTO> reports(Pageable pageable){
+//    Reports
+    public List<ReportResponseDTO> getMyReports(Pageable pageable) {
 //        Get Current Logged-in Profile
         UserEntity currentProfile = authService.getCurrentProfile();
-        Roles roles = currentProfile.getRoles().iterator().next();
+//        Fetch all report by current profile
+        List<Report> reports = reportRepository.findMyReports(currentProfile, pageable);
 
-        if(!currentProfile.getIsVerified()){
-            throw new IllegalArgumentException("Profile is not verified");
-        }
+        return reports.stream().map(report -> {
+            boolean isClient = report.getClient().getId().equals(currentProfile.getId());
+            boolean filedByMe = (isClient && report.getActionInitiatedBy() == ActionInitiatedBy.CLIENT)
+                    || (!isClient && report.getActionInitiatedBy() == ActionInitiatedBy.GIG);
 
-        List<Report> reports;
-        if(roles.equals(Roles.GIG)){
-            reports = reportRepository.findReports(ActionInitiatedBy.GIG,pageable);
-        }else {
-            reports = reportRepository.findReports(ActionInitiatedBy.CLIENT,pageable);
-        }
+            String otherPartyName = isClient
+                    ? report.getGig().getUser().getFirstName() + " " + report.getGig().getUser().getLastName()
+                    : report.getClient().getFirstName() + " " + report.getClient().getLastName();
 
-        return reports.stream()
-                .map(report -> ReportResponseDTO.builder()
-                        .id(report.getId())
-                        .reason(report.getReportReason().name())
-                        .actionInitiatedBy(report.getActionInitiatedBy())
-                        .description(report.getDescription())
-                        .reportStatus(report.getReportStatus().name())
-                        .adminRemark(report.getAdminRemark())
-                        .createdAt(report.getCreatedAt())
-                        .resolvedAt(report.getResolveAt())
-                        .build()
-                )
-                .toList();
+            return ReportResponseDTO.builder()
+                    .id(report.getId())
+                    .jobTitle(report.getJob() != null ? report.getJob().getTitle() : null)
+                    .otherPartyName(otherPartyName)
+                    .reportReason(report.getReportReason().name())
+                    .reportStatus(report.getReportStatus().name())
+                    .description(report.getDescription())
+                    .adminRemark(report.getAdminRemark())
+                    .filedByMe(filedByMe)
+                    .createdAt(report.getCreatedAt())
+                    .resolveAt(report.getResolveAt())
+                    .build();
+        }).toList();
     }
 }

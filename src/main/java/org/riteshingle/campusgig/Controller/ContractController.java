@@ -12,6 +12,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.data.domain.Page;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -22,10 +23,10 @@ import java.util.List;
 public class ContractController {
     private final ContractService contractService;
 
-//    All Contracts
+//    Contracts
     @PreAuthorize("hasRole('CLIENT') or hasRole('GIG')")
     @GetMapping("/contracts")
-    public ResponseEntity<List<ContractDetailsResponseDTO>> getContracts(@RequestParam(required = false,defaultValue = "1")int page,
+    public ResponseEntity<Page<ContractDetailsResponseDTO>> getContracts(@RequestParam(required = false,defaultValue = "1")int page,
                                                                          @RequestParam(required = false,defaultValue = "10")int size,
                                                                          @RequestParam(required = false,defaultValue = "ASC")String direction,
                                                                          @RequestParam(required = false,defaultValue = "createdAt")String field,
@@ -36,14 +37,14 @@ public class ContractController {
         return ResponseEntity.ok(contractService.getContracts(pageable,keyword,from,to));
     }
 
-//    Contract by ID
+//    Contract
     @PreAuthorize("hasRole('CLIENT') or hasRole('GIG')")
     @GetMapping("/contract/{contractId}")
     public ResponseEntity<ContractDetailsResponseDTO> getContract(@PathVariable Long contractId){
         return ResponseEntity.ok(contractService.getContract(contractId));
     }
 
-//    Set Work Progress ( ) -> GIG
+//    Progress
     @PreAuthorize("hasRole('GIG')")
     @PatchMapping("/progress")
     public ResponseEntity<?> updateProgress(@RequestParam Long contractId,@RequestParam String progress){
@@ -51,7 +52,7 @@ public class ContractController {
         return ResponseEntity.noContent().build();
     }
 
-//    Complete Contract ( ) -> Client
+//    Complete Contract
     @PreAuthorize("hasRole('CLIENT')")
     @PatchMapping("/complete-contract/{contractId}")
     public ResponseEntity<?> completeContract(@PathVariable Long contractId){
@@ -59,7 +60,7 @@ public class ContractController {
         return ResponseEntity.noContent().build();
     }
 
-//    Activate Contract ( ) -> Client
+//    Active Contract
     @PreAuthorize("hasRole('CLIENT')")
     @PatchMapping("/active-contract/{contractId}")
     public ResponseEntity<?> activeContract(@PathVariable Long contractId){
@@ -67,7 +68,7 @@ public class ContractController {
         return ResponseEntity.noContent().build();
     }
 
-//    Break Contract
+//    Cancel or Withdrawn Contract
     @PreAuthorize("hasRole('CLIENT') OR hasRole('GIG')")
     @PatchMapping("/break-contract/{contractId}")
     public ResponseEntity<?> cancelOrWithdrawnContract(@PathVariable Long contractId, @Valid @RequestBody ContractCancelOrWithdrawnRequestDTO dto){

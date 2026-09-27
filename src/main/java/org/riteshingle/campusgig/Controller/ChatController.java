@@ -17,20 +17,22 @@ import java.security.Principal;
 public class ChatController {
     private final ChatService chatService;
 
-//    Chat
+//    Send Message
     @MessageMapping("/chat/{conversationId}")
     public void sendMessage(@DestinationVariable Long conversationId, @Payload SendMessageRequestDTO request ,  Principal principal) {
         chatService.sendMessage(conversationId, request, principal);
     }
 
-
+//    Typing Indicator
     @MessageMapping("/chat/{conversationId}/typing")
     public void typing(@DestinationVariable Long conversationId, Principal principal) {
         chatService.broadcastTyping(conversationId, principal);
     }
 
+//    Mark Read Messages
     @MessageMapping("/chat/{conversationId}/read")
     public void markRead(@DestinationVariable Long conversationId, Principal principal) {
         chatService.markAsRead(conversationId, principal);
     }
+
 }

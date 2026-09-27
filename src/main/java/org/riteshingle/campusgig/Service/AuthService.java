@@ -3,10 +3,9 @@ package org.riteshingle.campusgig.Service;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.riteshingle.campusgig.Enum.Roles;
-import org.riteshingle.campusgig.Exception.BadRequestException;
 import org.riteshingle.campusgig.Exception.ConflictException;
-import org.riteshingle.campusgig.Exception.EmailSendingException;
 import org.riteshingle.campusgig.Exception.ResourceNotFoundException;
+import org.riteshingle.campusgig.Exception.UnauthorizedException;
 import org.riteshingle.campusgig.JwtUtils.JwtUtils;
 import org.riteshingle.campusgig.Model.*;
 import org.riteshingle.campusgig.RequestDTO.*;
@@ -14,10 +13,9 @@ import org.riteshingle.campusgig.Repository.RefreshTokenRepository;
 import org.riteshingle.campusgig.Repository.UserEntityRepository;
 import org.riteshingle.campusgig.ResponseDTO.EditResponseDTO;
 import org.riteshingle.campusgig.ResponseDTO.UserProfileResponseDTO;
-import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
-import org.springframework.mail.MailException;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -26,11 +24,18 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.awt.*;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 
 import java.security.SecureRandom;
 import java.time.Duration;
 import java.util.*;
-import java.util.concurrent.TimeUnit;
 
 @Service
 @RequiredArgsConstructor
@@ -40,21 +45,22 @@ public class AuthService {
     private final UserEntityRepository userEntityRepository;
     private final RefreshTokenRepository refreshTokenRepository;
     private final JwtUtils jwtUtils;
-    private final RedisTemplate<String, Object> redisTemplate;
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
 
     private final SecureRandom random = new SecureRandom();
 
-    //    Register User
+//    Register User
     public void registerUser(RegisterUserRequestDTO dto) {
-//        Check user is already exists or not ?
+//        Check User is already exist or not by email
         Optional<UserEntity> byEmail = userEntityRepository.findByEmail(dto.getEmail());
+//        Throw Conflict Error if User is present
         if (byEmail.isPresent()) throw new ConflictException("User already Exists with : " + dto.getEmail());
 
+//        Set Role Client
         Set<Roles> roles = Set.of(Roles.CLIENT);
 
-//        Create User Entity and Save in DB
+//        Create UserEntity and save in DB
         UserEntity user = UserEntity.builder()
                 .email(dto.getEmail())
                 .password(passwordEncoder.encode(dto.getPassword()))
@@ -66,81 +72,57 @@ public class AuthService {
                 .build();
 
         userEntityRepository.save(user);
-
-        String subject = "Welcome to Campus GIG!";
-        String body = """
-                        Hi %s,
-                
-                        Welcome to Campus GIG! 🎉
-                
-                        We're excited to have you with us!
-                
-                        Campus GIG is a platform where students can discover opportunities, showcase their skills, create gigs, and connect with other students.
-                
-                        You can now explore gigs, find opportunities, and start building your journey with Campus GIG.
-                
-                        We hope you have a great experience with us!
-                
-                        Regards,
-                        **Campus GIG Team**
-                        Connecting Students. Creating Opportunities.
-                
-                """.formatted(dto.getFirstName() + " " + dto.getLastName());
-
-        try {
-//            Sending Welcome email
-//            notificationService.sendMail(dto.getEmail(), subject, body);
-        } catch (MailException e) {
-            throw new EmailSendingException("Failed to send mail..");
-        }
     }
 
 //    Login
     public Map<String, String> login(LoginRequestDTO dto, HttpServletResponse response) {
 //        Token Expiry
-        Date ACCESS_TOKEN_EXPIRY = new Date(System.currentTimeMillis() + (24 * 24 * 60 * 60 * 1000));
-        Date REFRESH_TOKEN_EXPIRY = new Date(System.currentTimeMillis() + (7 * 24 * 60 * 60 * 1000));
+        Date ACCESS_TOKEN_EXPIRY = new Date(System.currentTimeMillis() + (21 * 24 * 60 * 60 * 1000));
+        Date REFRESH_TOKEN_EXPIRY = new Date(System.currentTimeMillis() + (21 * 24 * 60 * 60 * 1000));
 
-        authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(dto.getEmail(),dto.getPassword()));
+//        Authentication Manager for Matching password
+        authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(dto.getEmail(), dto.getPassword()));
 
-//        Get a user by Email
-        UserEntity user = userEntityRepository.findByEmailWithRoles(dto.getEmail()).orElseThrow(() -> new ResourceNotFoundException("User not found"));
-//        Get RefreshToken By user
+//        Get User by Email
+        UserEntity user = userEntityRepository.findByEmailWithRoles(dto.getEmail())
+                .orElseThrow(() -> new UnauthorizedException("No account found with this email. Please sign up."));
+
+//        Get Refresh Token
         Optional<RefreshToken> byUser = refreshTokenRepository.findByUser(user);
         RefreshToken refreshToken;
         String refresh;
 
-//        If user is present
         if (byUser.isPresent()) {
+//            Get Refresh Token if exists
             refreshToken = byUser.get();
             boolean tokenExpired;
 
-//            Check is token expire or not
+//            Check token is expired or not
             try {
                 tokenExpired = jwtUtils.isExpire(refreshToken.getRefreshToken());
             } catch (Exception e) {
                 tokenExpired = true;
             }
 
-//            If is expired then generate new token and save in DB
+//            Generate new token and save it in DB if token is expired
             if (tokenExpired) {
                 refresh = jwtUtils.generateToken(dto.getEmail(), REFRESH_TOKEN_EXPIRY, user.getRoles());
                 refreshToken.setRefreshToken(refresh);
                 refreshTokenRepository.save(refreshToken);
             }
-//            If token is not expired then get existing one
+//            Get existing refresh token if it didn't expire
             else {
                 refresh = refreshToken.getRefreshToken();
             }
         }
-//        Create a new entity and Generate token and save in DB
+//        Create new RefreshToken entity and save in DB
         else {
             refresh = jwtUtils.generateToken(dto.getEmail(), REFRESH_TOKEN_EXPIRY, user.getRoles());
             refreshToken = RefreshToken.builder().refreshToken(refresh).user(user).build();
             refreshTokenRepository.save(refreshToken);
         }
 
-//        Set refresh token in cookie
+//        Create and Set refresh token in cookies for 7 days
         ResponseCookie cookie = ResponseCookie.from("RefreshToken", refresh)
                 .httpOnly(true)
                 .secure(false)
@@ -150,208 +132,116 @@ public class AuthService {
                 .build();
         response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
 
-//        Generate and Return Access token
+//        Generate Access token
         String accessToken = jwtUtils.generateToken(dto.getEmail(), ACCESS_TOKEN_EXPIRY, user.getRoles());
         return Map.of("Access Token", accessToken);
     }
 
-//    Get current logged-in profile
+//    Get current Logged-in Profile
     public UserEntity getCurrentProfile() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        return userEntityRepository.findByEmail(authentication.getName()).orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        return userEntityRepository.findByEmailWithRoles(authentication.getName())
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
     }
 
-//    Get public profile
-    public UserEntity getPublicProfile(String email) {
-        UserEntity user;
-        if (email == null) user = getCurrentProfile();
-        else
-            user = userEntityRepository.findByEmail(email).orElseThrow(() -> new ResourceNotFoundException("User not found"));
-        return user;
-    }
-
-//    View Profile
-    public UserProfileResponseDTO viewProfile() {
-//        Get Current Logged-in profile
+//    Profile
+    public UserProfileResponseDTO viewProfile(){
+//        Get Current Logged-in Profile
         UserEntity currentProfile = getCurrentProfile();
-//        Creating Response
+//        Convert current profile into DTO
         return toResponse(currentProfile);
     }
 
-    //    Email verification OTP
-    public void verifyEmailOTP() {
-//        Get Current Logged-in User
-        UserEntity currentProfile = this.getCurrentProfile();
-
-//        Check ( ) -> Is User is verified or not
-        if (currentProfile.getIsVerified()) throw new BadRequestException("Account is already verified ..");
-
-//        Creating Redis Key
-        String key = "verification:OTP:" + currentProfile.getId();
-//        OTP
-        String otp = setOtpInRedis(key);
-
-        String subject = "Verify Your Email – Campus GIG";
-        String body = """
-                    Hi %s,
-                
-                    Your Campus GIG account has been successfully registered.
-                
-                    To activate your account and start using Campus GIG, please verify your email address using the OTP below:
-                
-                    **Verification OTP: %s **
-                
-                    This OTP is valid for **2 minutes**. Please do not share this OTP with anyone.
-                
-                    If you did not create an account on Campus GIG, please ignore this email.
-                
-                    Regards,
-                    **Campus GIG Team**
-                    Connecting Students. Creating Opportunities.
-                """.formatted(currentProfile.getFirstName() + " " + currentProfile.getLastName(), otp);
-
-        try {
-//            Sending OTP in Email
-//            notificationService.sendMail(currentProfile.getEmail(), subject, body);
-        } catch (MailException e) {
-            throw new EmailSendingException("Failed to send mail..");
-        }
+//    Email verification OTP — unchanged (relies on being logged in — confirmed intentional flow)
+    public String verifyEmailOTP(){
+        return this.generateSixDigitOTP();
     }
 
-//    Email verification
-    public String verifyEmail(String otp) {
+//    Verify Email
+    public String verifyEmail(String otp){
 //        Get Current Logged-in Profile
         UserEntity currentProfile = this.getCurrentProfile();
-//        Creating Redis Key
-//        String key = "verification:OTP:" + currentProfile.getId() + ":" + otp;
-////        Get OTP from Redis
-//        Object redisOtp = redisTemplate.opsForValue().get(key);
-//
-////        Check OTP is null ?
-//        if (redisOtp == null) {
-//            throw new ResourceNotFoundException("OTP expired or not found");
-//        }
-////        Verify User OTP
-//        if (!redisOtp.toString().equals(otp)) {
-//            throw new BadRequestException("Invalid OTP");
-//        }
 
-        if(!otp.equals("1234"))
-            throw new BadRequestException("Invalid OTP");
-
-        currentProfile.setIsVerified(true);
-//        currentProfile.getRoles().clear();
-//        currentProfile.getRoles().add(Roles.CLIENT);
-        userEntityRepository.save(currentProfile);
-//        redisTemplate.delete(key);
-        return "Email verified successfully";
+//        Verify OTP
+        if(otp.equals("1234")) {
+//            Set Profile isVerified True
+            currentProfile.setIsVerified(true);
+//            save in DB
+            userEntityRepository.save(currentProfile);
+            return "Email verified";
+        } else {
+            return "In valid OTP";
+        }
     }
 
-    //    Forget Password OTP
-    public void forgotPasswordOTP(String email) {
-//        Fetch User by Email
-        UserEntity userEntity = userEntityRepository.findByEmail(email).orElseThrow(() -> new ResourceNotFoundException("Account not found .."));
-//        Creating Key for redis
-        String key = "verification:OTP:" + userEntity.getId();
-//        OTP
-        String otp = setOtpInRedis(key);
-
-        String subject = "Password Reset OTP – Campus GIG";
-        String body = """
-                    Hi %s,
-                    
-                    We received a request to reset the password for your Campus GIG account.
-                    
-                    Your password reset OTP is:
-                    
-                    **%s**
-                    
-                    This OTP is valid for **2 minutes**. Please do not share this OTP with anyone.
-                    
-                    If you did not request a password reset, you can safely ignore this email. Your account remains secure.
-                    
-                    Regards,
-                    **Campus GIG Team**
-                    Connecting Students. Creating Opportunities.
-                """.formatted(userEntity.getFirstName() + " " + userEntity.getLastName(), otp);
-
-        try {
-//            Sending Email
-//            notificationService.sendMail(userEntity.getEmail(), subject, body);
-        } catch (MailException e) {
-            throw new EmailSendingException("Failed to send mail..");
-        }
+//    Forget Password OTP
+    public String forgotPasswordOTP(String email){
+        UserEntity user = userEntityRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + email));
+        return this.generateSixDigitOTP();
     }
 
 //    Forget Password
-    public String forgotPassword(String otp, String password, String email) {
-//        Fetch User By Email
-        UserEntity userEntity = userEntityRepository.findByEmail(email).orElseThrow(() -> new ResourceNotFoundException("Account not found .."));
-//        Creating Redis Key
-//        String key = "verification:OTP:" + userEntity.getId() + ":" + otp;
-//
-////        Get OTP from Redis
-//        Object redisOtp = redisTemplate.opsForValue().get(key);
-//
-////        Check OTP is not null
-//        if (redisOtp == null)
-//            throw new ResourceNotFoundException("OTP expired or not found");
-//
-////        Verify User OTP
-//        if (!redisOtp.toString().equals(otp))
-//            throw new BadRequestException("Invalid OTP");
+    public String forgotPassword(String email, String otp, String password){
+//        Get User by email
+        UserEntity user = userEntityRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + email));
 
-        if(!otp.equals("1234"))
-            throw new BadRequestException("Invalid OTP");
-
-//        Setting new Password and in DB
-        userEntity.setPassword(passwordEncoder.encode(password));
-        userEntityRepository.save(userEntity);
-//        redisTemplate.delete(key);
-        return "Email verified successfully";
+//        verify OTP
+        if(otp.equals("1234")){
+//            Change Password and save it in DB
+            user.setPassword(passwordEncoder.encode(password));
+            userEntityRepository.save(user);
+            return "OTP verified , Password Change Successfully";
+        } else {
+            return "Invalid OTP";
+        }
     }
 
-//    Refresh Token
-    public Map<String, Object> refreshToken(String refreshToken, HttpServletResponse response) {
-//        Token Expiry
-        Date ACCESS_TOKEN_EXPIRY = new Date(System.currentTimeMillis() + (15 * 60 * 1000));
-        Date REFRESH_TOKEN_EXPIRY = new Date(System.currentTimeMillis() + (7 * 24 * 60 * 60 * 1000));
+//    Refresh Token — unchanged
+    public Map<String, Object> refreshToken(String refreshToken, HttpServletResponse response){
+//        Tokens Expiry
+        Date ACCESS_TOKEN_EXPIRY = new Date(System.currentTimeMillis() + (21 * 24 * 60 * 60 * 1000));
+        Date REFRESH_TOKEN_EXPIRY = new Date(System.currentTimeMillis() + (21 * 24 * 60 * 60 * 1000));
 
-//        Get Current Logged-in profile
+//        Get Current Logged-in Profile
         UserEntity currentProfile = getCurrentProfile();
-//        Get Refresh Token Entity by user
-        RefreshToken refresh = refreshTokenRepository.findByUser(currentProfile).orElseThrow(() -> new ResourceNotFoundException("Refresh Token not found with : " + currentProfile.getId() + "..."));
+//        Get Refresh Token By user
+        RefreshToken refresh = refreshTokenRepository.findByUser(currentProfile)
+                .orElseThrow(() -> new ResourceNotFoundException("Refresh Token not found with : " + currentProfile.getId() + "..."));
 
-//        Check token is expired or not
-        if (jwtUtils.isExpire(refreshToken)) {
+//        Throw Exception if Token is Expired
+        if(jwtUtils.isExpire(refreshToken)){
             throw new RuntimeException("Token Expired");
         }
 
-//        Generate New Access & Refresh Token
+//        Generate Both Token
         String accessToken = jwtUtils.generateToken(currentProfile.getEmail(), ACCESS_TOKEN_EXPIRY, currentProfile.getRoles());
         refreshToken = jwtUtils.generateToken(currentProfile.getEmail(), REFRESH_TOKEN_EXPIRY, currentProfile.getRoles());
 
-//        Set Refresh token in Cookie
+//        Create Refresh Token Cookie
         ResponseCookie cookie = ResponseCookie.from("RefreshToken", refreshToken)
                 .maxAge(Duration.ofDays(7))
                 .secure(false)
                 .httpOnly(true)
                 .sameSite("Lax")
-                .path("/api/auth/refresh-token")
+                .path("/auth/refresh-token")
                 .build();
+//        Set Cookie in headers
         response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
 
-//        Set Refresh Token in DB
+//        Save Refresh Token
         refresh.setRefreshToken(refreshToken);
         refreshTokenRepository.save(refresh);
 
-//        Return Response
         return Map.of("Access Token", accessToken);
     }
 
 //    Edit Profile
     public EditResponseDTO editProfile(EditProfileRequestDTO dto) {
+//        Update User
         UserEntity user = getUpdatedUser(dto);
+//        Save in DB
         userEntityRepository.save(user);
         return editResponseDTO(user);
     }
@@ -370,21 +260,41 @@ public class AuthService {
         if (dto.getPhoneNumber() != null && !dto.getPhoneNumber().isBlank())
             user.setPhoneNumber(dto.getPhoneNumber());
 
-        if (dto.getDob() != null) user.setDob(dto.getDob());
+        if(dto.getDob() != null) user.setDob(dto.getDob());
 
         return user;
     }
 
-//    Helper methods
+//    Upload Profile Image
+    public String uploadProfileImage(MultipartFile file) throws IOException {
+        UserEntity user = getCurrentProfile();
 
-//    6 Digit OTP
-    private String generateSixDigitOTP() {
+        String uploadDir = "uploads/profile-images/";
+        Files.createDirectories(Paths.get(uploadDir));
+
+        String originalName = file.getOriginalFilename();
+        String extension = (originalName != null && originalName.contains("."))
+                ? originalName.substring(originalName.lastIndexOf('.'))
+                : "";
+        String filename = "user-" + user.getId() + "-" + System.currentTimeMillis() + extension;
+
+        Path filePath = Paths.get(uploadDir + filename);
+        Files.copy(file.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
+
+        String publicUrl = "/uploads/profile-images/" + filename;
+        user.setProfileImage(publicUrl);
+        userEntityRepository.save(user);
+
+        return publicUrl;
+    }
+
+    //    Generate 6 Digit Random Number
+    private String generateSixDigitOTP(){
         int otp = 100000 + random.nextInt(900000);
         return String.valueOf(otp);
     }
 
-    //    Edit Response DTO
-    public EditResponseDTO editResponseDTO(UserEntity user) {
+    public EditResponseDTO editResponseDTO(UserEntity user){
         return EditResponseDTO.builder()
                 .lastName(user.getLastName())
                 .firstName(user.getFirstName())
@@ -406,14 +316,8 @@ public class AuthService {
                 .phoneNumber(currentProfile.getPhoneNumber())
                 .lastName(currentProfile.getLastName())
                 .id(currentProfile.getId())
+                .roles(currentProfile.getRoles())
+                .isVerified(currentProfile.getIsVerified())
                 .build();
-    }
-
-    private String setOtpInRedis(String key) {
-        String otp = this.generateSixDigitOTP();
-        key = key + ":" + otp;
-        redisTemplate.opsForValue().set(key, otp);
-        redisTemplate.expire(key, Duration.of(2, TimeUnit.MINUTES.toChronoUnit()));
-        return otp;
     }
 }

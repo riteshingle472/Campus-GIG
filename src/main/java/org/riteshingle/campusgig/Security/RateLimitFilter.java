@@ -17,12 +17,13 @@ import java.util.concurrent.ConcurrentHashMap;
 
 @Component
 public class RateLimitFilter extends OncePerRequestFilter {
+
     private final Map<String, Bucket> cache = new ConcurrentHashMap<>();
 
-    private Bucket createBucket(){
+    private Bucket createBucket() {
         Bandwidth limit = Bandwidth.builder()
-                .capacity(50)                     // max 10 requests
-                .refillGreedy(50, Duration.ofMinutes(1)) // every minute
+                .capacity(60)
+                .refillGreedy(60, Duration.ofMinutes(1))
                 .build();
 
         return Bucket.builder()
@@ -31,7 +32,12 @@ public class RateLimitFilter extends OncePerRequestFilter {
     }
 
     @Override
-    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
+    protected void doFilterInternal(
+            HttpServletRequest request,
+            HttpServletResponse response,
+            FilterChain filterChain
+    ) throws ServletException, IOException {
+
         // Allow CORS preflight requests to pass through untouched
         if (request.getMethod().equalsIgnoreCase("OPTIONS")) {
             filterChain.doFilter(request, response);
@@ -39,7 +45,6 @@ public class RateLimitFilter extends OncePerRequestFilter {
         }
 
         String ip = request.getRemoteAddr();
-
         Bucket bucket = cache.computeIfAbsent(ip, k -> createBucket());
 
         if (bucket.tryConsume(1)) {
@@ -49,11 +54,11 @@ public class RateLimitFilter extends OncePerRequestFilter {
             response.setContentType("application/json");
 
             response.getWriter().write("""
-                    {
-                      "status":429,
-                      "message":"Too many requests. Try again later."
-                    }
-                    """);
+                {
+                  "status":429,
+                  "message":"Too many requests. Try again later."
+                }
+                """);
         }
     }
 }

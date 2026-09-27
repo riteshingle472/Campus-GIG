@@ -20,6 +20,7 @@ public class BookmarkResponseDTO {
     private LocalDate deadline;
     private BigDecimal budget;
     private JobCategory category;
+    private Long jobId;
     private JobStatus jobStatus;
     private ExperienceLevel experienceLevel;
 }

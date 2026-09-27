@@ -10,6 +10,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+import java.io.IOException;
 
 import java.util.Map;
 
@@ -19,61 +21,67 @@ import java.util.Map;
 public class AuthController {
     private final AuthService authService;
 
-    //    User register
+//    User register
     @PostMapping("/sign-up")
     public ResponseEntity<String> registerUser(@RequestBody RegisterUserRequestDTO dto) {
         authService.registerUser(dto);
         return ResponseEntity.status(HttpStatus.CREATED).build();
     }
 
-    //    Login
+//    Login - POST
     @PostMapping("/login")
     public ResponseEntity<Map<String, String>> login(@RequestBody LoginRequestDTO dto, HttpServletResponse response) {
         return ResponseEntity.ok(authService.login(dto, response));
     }
 
-    //    Email varification OTP API
+//    Email verification OTP API
     @GetMapping("/verification")
-    public ResponseEntity<?> verifyEmailOTP() {
-        authService.verifyEmailOTP();
-        return ResponseEntity.status(HttpStatus.CREATED).build();
+    public ResponseEntity<String> verifyEmailOTP() {
+        return ResponseEntity.ok(authService.verifyEmailOTP());
     }
 
-    //    Email Varification API
+//    Email Verification API
     @PatchMapping("/verification")
     public ResponseEntity<String> verifyEmail(@RequestParam String otp) {
         return ResponseEntity.ok(authService.verifyEmail(otp));
     }
 
-    //    Forgot Password OTP API
+//    Forgot Password OTP API
     @GetMapping("/forgot-password")
-    public ResponseEntity<?> forgotPasswordOTP(@RequestParam String email) {
-        authService.forgotPasswordOTP(email);
-        return ResponseEntity.status(HttpStatus.CREATED).build();
+    public ResponseEntity<String> forgotPasswordOTP(@RequestParam String email) {
+        return ResponseEntity.ok(authService.forgotPasswordOTP(email));
     }
 
-    //    Forgot/Change Password API
+//    Forgot/Change Password API
     @PatchMapping("/forgot-password")
-    public ResponseEntity<String> forgotPassword(@RequestParam String otp, @RequestParam String newPassword,@RequestParam String email) {
-        return ResponseEntity.ok(authService.forgotPassword(otp, newPassword,email));
+    public ResponseEntity<String> forgotPassword(@RequestParam String email, @RequestParam String otp, @RequestParam String newPassword) {
+        return ResponseEntity.ok(authService.forgotPassword(email, otp, newPassword));
     }
 
-    //    Refresh Token
+//    Refresh Token
     @GetMapping("/refresh-token")
     public ResponseEntity<Map<String, Object>> refreshToken(@CookieValue(name = "RefreshToken") String refreshToken, HttpServletResponse response) {
         return ResponseEntity.ok(authService.refreshToken(refreshToken, response));
     }
 
+//    User Profile
     @GetMapping("/profile")
     public ResponseEntity<UserProfileResponseDTO> userProfile() {
         return ResponseEntity.ok(authService.viewProfile());
     }
 
-    //    Edit Profile
+//    Edit Profile
     @PreAuthorize("hasRole('CLIENT') or hasRole('GIG')")
     @PatchMapping("/edit-profile")
     public ResponseEntity<EditResponseDTO> editProfile(@RequestBody EditProfileRequestDTO dto) {
         return ResponseEntity.ok(authService.editProfile(dto));
+    }
+
+    @PreAuthorize("hasRole('CLIENT') or hasRole('GIG')")
+    @PostMapping("/profile/image")
+    public ResponseEntity<Map<String, String>> uploadProfileImage(@RequestParam("file") MultipartFile file) throws IOException {
+        String url = authService.uploadProfileImage(file);
+        return ResponseEntity.ok(Map.of("profileImage", url));
     }
 
     @GetMapping("/test")

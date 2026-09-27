@@ -20,4 +20,7 @@ public class JobApplicationSortingAndFilteringResponseDTO {
     private JobApplicationStatus jobApplicationStatus;
     private LocalDate deliveryDate;
     private LocalDateTime applyAt;
+    private Long id;
+    private Long jobId;
+    private String jobTitle;
 }

@@ -2,42 +2,24 @@ package org.riteshingle.campusgig.Service;
 
 import lombok.RequiredArgsConstructor;
 import org.riteshingle.campusgig.Enum.NotificationType;
+import org.riteshingle.campusgig.Exception.ResourceNotFoundException;
 import org.riteshingle.campusgig.Model.Notification;
 import org.riteshingle.campusgig.Model.UserEntity;
 import org.riteshingle.campusgig.Repository.NotificationRepository;
 import org.riteshingle.campusgig.ResponseDTO.NotificationResponseDTO;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.mail.SimpleMailMessage;
-import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
+@Transactional
 public class NotificationService {
-    private final JavaMailSender javaMailSender;
     private final NotificationRepository notificationRepository;
     private final SimpMessagingTemplate messagingTemplate;
     private final AuthService authService;
-
-
-    public void sendMail(String to , String subject ,String body){
-        SimpleMailMessage javaMail =  new SimpleMailMessage();
-
-        try {
-            javaMail.setTo(to);
-            javaMail.setSubject(subject);
-            javaMail.setText(body);
-
-            javaMailSender.send(javaMail);
-        }catch (Exception e){
-            e.printStackTrace(); // ya logger.error("Mail error: ", e);
-            throw new RuntimeException("Mail sending failed: " + e.getMessage(), e);
-
-        }
-    }
-
 
     /**
      * Core entry point — every other service calls this to notify a user.
@@ -45,6 +27,7 @@ public class NotificationService {
      * then pushes it live over STOMP if they happen to be connected.
      */
     public void notify(UserEntity recipient, NotificationType type, String title, String message, Long referenceId) {
+//        Create Notification
         Notification notification = Notification.builder()
                 .recipient(recipient)
                 .type(type)
@@ -54,9 +37,11 @@ public class NotificationService {
                 .isRead(false)
                 .build();
 
-        Notification saved = notificationRepository.save(notification);
+//        Savve in DB
+        notification = notificationRepository.save(notification);
 
-        NotificationResponseDTO dto = toDto(saved);
+//        Convert Notification into DTO
+        NotificationResponseDTO dto = toDto(notification);
 
         // Per-user private queue — see WebSocketConfiguration note below for
         // why this needs enableSimpleBroker("/topic", "/user") and a
@@ -68,23 +53,27 @@ public class NotificationService {
         );
     }
 
+//    My notifications
     public Page<NotificationResponseDTO> getMyNotifications(Pageable pageable) {
+//        Get Current Logged-in Profile
         UserEntity currentProfile = authService.getCurrentProfile();
-        return notificationRepository
-                .findByRecipientOrderByCreatedAtDesc(currentProfile, pageable)
-                .map(this::toDto);
+//        Fetch Notifications by current logged-in user
+        return notificationRepository.findByRecipientOrderByCreatedAtDesc(currentProfile, pageable).map(this::toDto);
     }
 
+//    Unread message count
     public long getUnreadCount() {
         UserEntity currentProfile = authService.getCurrentProfile();
         return notificationRepository.countByRecipientAndIsReadFalse(currentProfile);
     }
 
+//    Mark Read
     public void markAllAsRead() {
         UserEntity currentProfile = authService.getCurrentProfile();
         notificationRepository.markAllAsRead(currentProfile);
     }
 
+//    Helper method
     private NotificationResponseDTO toDto(Notification n) {
         return NotificationResponseDTO.builder()
                 .id(n.getId())

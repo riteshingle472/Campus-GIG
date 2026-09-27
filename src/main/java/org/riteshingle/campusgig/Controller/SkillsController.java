@@ -29,20 +29,19 @@ public class SkillsController {
         return ResponseEntity.ok(skillsService.getSkills(pageable));
     }
 
-//    Get Skill by ID
+    //    Get Skill by ID
     @GetMapping("/skill/{id}")
     public ResponseEntity<SkillResponseDTO> getSkill(@PathVariable Long id) {
         return ResponseEntity.ok(skillsService.getSkill(id));
     }
 
-//    Add skill ADMIN Only
+    //    Add skill ADMIN Only
     @PostMapping("/add-skill")
     public ResponseEntity<?> addSkill(@RequestParam String skill) {
         skillsService.addSkill(skill);
         return ResponseEntity.status(HttpStatus.CREATED).build();
     }
 
-//    Search Skills
     @GetMapping("/search")
     public ResponseEntity<List<SkillResponseDTO>> searchSkill(@RequestParam(defaultValue = "1", required = false) int pageNumber,
                                                               @RequestParam(defaultValue = "10", required = false) int pageSize,

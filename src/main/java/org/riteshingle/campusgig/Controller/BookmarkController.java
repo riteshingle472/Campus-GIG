@@ -18,7 +18,7 @@ import java.util.List;
 public class BookmarkController {
     private final BookmarkService bookmarkService;
 
-//    Save Job
+//    Bookmark Job API
     @PreAuthorize("hasRole('GIG')")
     @PostMapping("/bookmark")
     public ResponseEntity<?> saveJob(@RequestParam Long jobId){
@@ -26,7 +26,7 @@ public class BookmarkController {
         return ResponseEntity.status(HttpStatus.CREATED).build();
     }
 
-//    Unsave Job
+//    Delete Bookmark API
     @PreAuthorize("hasRole('GIG')")
     @DeleteMapping("/bookmark")
     public ResponseEntity<?> deleteJob(@RequestParam Long jobId){
@@ -34,7 +34,7 @@ public class BookmarkController {
         return ResponseEntity.noContent().build();
     }
 
-//    All Save Job
+//    All Bookmark Jobs
     @PreAuthorize("hasRole('GIG')")
     @GetMapping("/bookmarks")
     public ResponseEntity<List<BookmarkResponseDTO>> getSaveJobs(@RequestParam(required = false,defaultValue = "1")int page,

@@ -34,35 +34,26 @@ public class BookmarkService {
 //        Get Current Logged-in Profile
         UserEntity currentProfile = authService.getCurrentProfile();
 
-//        Get User Role
-        Roles roles = currentProfile.getRoles().iterator().next();
-
-//        Only GIG and Client can save Job
-        if(!roles.equals(Roles.GIG))
-            throw new ForbiddenException("Only GIG can save Job..");
-
-//        Chek user is verified or not
-        if(!currentProfile.getIsVerified()){
+        if(!currentProfile.getIsVerified())
             throw new ForbiddenException("GIG is not Verified");
-        }
 
-        if(currentProfile.getGig() == null)
-            throw new BadRequestException("Only GIG can save Job");
+//        Check Current Profile Role
+//        Only GIG can Bookmark Job
+        if(currentProfile.getRoles().contains(Roles.GIG))
+            throw new ForbiddenException("You must complete your Gig profile to save jobs");
 
-//        Get GIG
         GIG gig = currentProfile.getGig();
 
-//        Get Job By ID
         Job job = jobRepository.findById(jobId).orElseThrow(() -> new ResourceNotFoundException("Job not found with job id : "+jobId));
 
-//        Check Job is already saved By GIG
+//        Check Job is already bookmarked or not
         if(saveJobRepository.existsByGigIdAndJobId(gig.getId(), jobId)) throw new ConflictException("Job already saved");
-//        Check Job Deadline ,You can't save Expire Job
+//        Can't Bookmark expire Job
         if(job.getDeadline().isBefore(LocalDate.now())) throw new BadRequestException("Cannot save expired job");
-//        Check Job status
+//        Only Open Job you can bookmark
         if(!job.getJobStatus().equals(JobStatus.OPEN)) throw new BadRequestException("Cannot save job , job is : "+job.getJobStatus().name());
 
-//        Save Bookmark in DB
+//        Create Bookmark and save in DB
         Bookmark build = Bookmark.builder()
                 .gig(gig)
                 .job(job)
@@ -75,51 +66,51 @@ public class BookmarkService {
     public void removeBookmarkJob(Long jobId){
 //        Get Current Logged-in Profile
         UserEntity currentProfile = authService.getCurrentProfile();
-//        Get GIG Role
-        Roles roles = currentProfile.getRoles().iterator().next();
 
-//        Check ( ) -> Only GIG can remove Bookmark
-        if(!roles.equals(Roles.GIG))
-            throw new ForbiddenException("Only GIG and Client can save Job..");
-
-//        Check Profile is verified
+//        Check Profile is verified ?
         if(!currentProfile.getIsVerified())
             throw new ForbiddenException("GIG is not Verified");
 
-//        Get GIG profile
+//        Check Current Profile Role
+//        Only GIG can Remove Bookmark
+        if(currentProfile.getRoles().contains(Roles.GIG))
+            throw new ForbiddenException("You must complete your Gig profile to save jobs");
+
+//        Get GIG from Current Profile
         GIG gig = currentProfile.getGig();
-//        fetch Bookmark By GIG and Job ID
+
+//        Get Bookmark by Job and GIG id
         Bookmark bookmark = saveJobRepository.findByJobIdAndGigId(jobId, gig.getId()).orElseThrow(() -> new ForbiddenException("You are not authorized to remove job from saves.."));
-//        Remove Bookmark permanent
         saveJobRepository.delete(bookmark);
     }
 
-//    Get Bookmark
+//    Get Bookmarks
     public List<BookmarkResponseDTO> bookmarkJobs(Pageable pageable) {
 //        Get Current Logged-in Profile
         UserEntity currentProfile = authService.getCurrentProfile();
-//        Get GIG Role
-        Roles roles = currentProfile.getRoles().iterator().next();
-//        Get GIG
-        GIG gig = currentProfile.getGig();
 
-//        Check ( ) -> Only GIG can See Bookmark
-        if(!roles.equals(Roles.GIG))
-            throw new ForbiddenException("Only GIG and Client can save Job..");
-
-//        Check GIG is verified
-        if (!currentProfile.getIsVerified())
+//        Check Profile is verified ?
+        if(!currentProfile.getIsVerified())
             throw new ForbiddenException("GIG is not Verified");
 
-//        Get Bookmark By GIG ID
+//        Check Current Profile Role
+//        Only GIG can Remove Bookmark
+        if(currentProfile.getRoles().contains(Roles.GIG))
+            throw new ForbiddenException("You must complete your Gig profile to save jobs");
+
+//        Get GIG from Current Profile
+        GIG gig = currentProfile.getGig();
+
+//        Fetch Bookmarks by GIG id
         List<Bookmark> byGigId = saveJobRepository.findByGigId(gig.getId(),pageable).getContent();
         return byGigId.stream().map(this::responseDTO).toList();
     }
 
-//    Helper method
+//    Helper Methods
     private BookmarkResponseDTO responseDTO(Bookmark bookmark){
         Job job = bookmark.getJob();
         return BookmarkResponseDTO.builder()
+                .jobId(job.getId())
                 .jobStatus(job.getJobStatus())
                 .deadline(job.getDeadline())
                 .jobTitle(job.getTitle())

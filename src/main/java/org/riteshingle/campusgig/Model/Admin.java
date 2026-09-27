@@ -23,18 +23,22 @@ public class Admin {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
-    @NotBlank(message = "Full name is required")
-    private String fullName;
-
     @Column(nullable = false,updatable = false)
     @NotBlank(message = "Email is required..")
     private String email;
 
     @Column(nullable = false,updatable = false)
     @NotBlank(message = "Password is required")
-    @Size(min = 8,message = "Password must be at least 8 digit Long")
+    @Size(min = 8,message = "Password must be at least 8 digit")
     private String password;
+
+    @Column(nullable = false)
+    @NotBlank(message = "Full name is required")
+    private String fullName;
+
+    @Column(nullable = false)
+    @NotBlank(message = "Contact number is required")
+    private String contactNo;
 
     @ElementCollection(targetClass = Roles.class)
     @Enumerated(EnumType.STRING)

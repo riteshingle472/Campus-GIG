@@ -5,7 +5,6 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.riteshingle.campusgig.Enum.AvailabilityStatus;
-import org.riteshingle.campusgig.Enum.JobCategory;
 
 import java.util.List;
 

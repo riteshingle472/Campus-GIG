@@ -3,6 +3,7 @@ package org.riteshingle.campusgig.Service;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.riteshingle.campusgig.Enum.ContractStatus;
+import org.riteshingle.campusgig.Enum.NotificationType;
 import org.riteshingle.campusgig.Exception.ForbiddenException;
 import org.riteshingle.campusgig.Exception.InvalidStatusException;
 import org.riteshingle.campusgig.Exception.ResourceNotFoundException;
@@ -16,8 +17,8 @@ import org.riteshingle.campusgig.Repository.MessageRepository;
 import org.riteshingle.campusgig.Repository.UserEntityRepository;
 import org.riteshingle.campusgig.RequestDTO.SendMessageRequestDTO;
 import org.riteshingle.campusgig.ResponseDTO.MessageResponse;
-import org.riteshingle.campusgig.ResponseDTO.ReadEvent;
 import org.riteshingle.campusgig.ResponseDTO.TypingEvent;
+import org.riteshingle.campusgig.ResponseDTO.ReadEvent;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -38,49 +39,47 @@ public class ChatService {
 
     @Transactional
     public void sendMessage(Long conversationId, SendMessageRequestDTO sendMessageRequestDTO, Principal principal) {
-
-        log.info("========== CHAT MESSAGE ==========");
-        log.info("Conversation ID = {}", conversationId);
-        log.info("Message = {}", sendMessageRequestDTO.message());
-        log.info("Principal = {}", principal);
-
 //        Get Current Logged-in user
-        if(principal == null) throw new UnauthorizedException("User is not authenticated");
-//        Get Email From Principal
+        if (principal == null) throw new UnauthorizedException("User is not authenticated");
+
+//        Get email from Principal
         String email = principal.getName();
 
-//        Get User by Email
-        UserEntity currentProfile = userEntityRepository.findByEmail(email).orElseThrow(() ->new ResourceNotFoundException("User not found"));
+//        Get profile by email
+        UserEntity currentProfile = userEntityRepository.findByEmail(email).orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
 //        Find conversation
         Conversation conversation = conversationRepository.findById(conversationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Conversation not found ..."));
 
-//        Find Contract
-        Contract contract = conversation.getContract();
-
-        if (contract == null)
+//        Check contract is authorized
+        if (conversation.getContract() == null)
             throw new ResourceNotFoundException("Conversation is not linked with contract");
 
-//        Check contract is authorized
+//        Get Contract from Conversation
+        Contract contract = conversation.getContract();
+
+//        Check Contract Status
+//        Chat Only Allowed for Active Contract
         if (contract.getContractStatus() == ContractStatus.WITHDRAWN || contract.getContractStatus() == ContractStatus.CANCEL)
             throw new InvalidStatusException("Chat is available only for active contract");
 
-//        Check Client and GIG authorization From Contract
+//        Check Client and GIG Authority
         boolean isClient = contract.getClient().getId().equals(currentProfile.getId());
         boolean isGig = currentProfile.getGig() != null && contract.getGig().getId().equals(currentProfile.getGig().getId());
 
         if (!isClient && !isGig) throw new ForbiddenException("You are not a participant of this conversation");
 
-//        Save Message in DB
-        Message saveMessage = Message.builder()
+//        Create message entity and save it in DB
+        Message message = Message.builder()
                 .message(sendMessageRequestDTO.message())
                 .sender(currentProfile)
                 .conversation(conversation)
                 .build();
 
-        saveMessage = messageRepository.save(saveMessage);
+        Message saveMessage = messageRepository.save(message);
 
+//        Convert Message in DTO
         MessageResponse response = new MessageResponse(
                 saveMessage.getId(),
                 conversation.getId(),
@@ -90,42 +89,38 @@ public class ChatService {
                 saveMessage.getSentAt()
         );
 
-        UserEntity recipient = isClient
-                ? contract.getGig().getUser()
-                : contract.getClient();
+//        Get Recipient for sending notification
+        UserEntity recipient = isClient ? contract.getGig().getUser() : contract.getClient();
 
+//        Sent notification
         notificationService.notify(
-                recipient,
-                org.riteshingle.campusgig.Enum.NotificationType.NEW_MESSAGE,
-                "New Message",
-                currentProfile.getFirstName() + " sent you a new message.",
-                conversationId
+                recipient,NotificationType.NEW_MESSAGE, "New Message",
+                currentProfile.getFirstName() + " sent you a new message.",conversationId
         );
-
-//        Delivered message to the Subscriber
+//        Broadcast message to conversation subscriber
         messagingTemplate.convertAndSend("/topic/chat/" + conversationId, response);
     }
 
-//    Chat History
+//    Get Chat history
     @Transactional
     public List<MessageResponse> getMessage(Long conversationId, UserEntity currentProfile) {
-//        Get Conversation by Conversation ID
+//        Fetch Conversation by ID
         Conversation conversation = conversationRepository.findById(conversationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Conversation not found"));
 
-//        Get contract from conversation
-        Contract contract = conversation.getContract();
-//        Check Contract is not null
-        if (contract == null) throw new ResourceNotFoundException("Contract not found");
+        if (conversation.getContract() == null) throw new ResourceNotFoundException("Contract not found");
 
-//        Check Client and GIG authorization from contract
+//        Get Contract from conversation
+        Contract contract = conversation.getContract();
+
+//        Client and GIG Authority
         boolean isClient = contract.getClient().getId().equals(currentProfile.getId());
         boolean isGig = currentProfile.getGig() != null && contract.getGig().getId().equals(currentProfile.getGig().getId());
 
         if (!isClient && !isGig)
             throw new ForbiddenException("You are not a participant of this conversation");
 
-//        Fetch All Chat Messages
+//        Return Chat history in List
         return messageRepository.findByConversationIdOrderBySentAtAsc(conversationId).stream()
                 .map(message -> new MessageResponse(
                                 message.getId(),
@@ -138,24 +133,35 @@ public class ChatService {
                 .toList();
     }
 
+//    Typing Indicator
     public void broadcastTyping(Long conversationId, Principal principal) {
+//        Get Email form Principal
         String email = principal.getName();
+//        Get User by email
         UserEntity user = userEntityRepository.findByEmail(email)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
+//        Broadcast Typing event to conversation id subscriber
         messagingTemplate.convertAndSend(
                 "/topic/chat/" + conversationId + "/typing",
                 new TypingEvent(user.getId(), user.getFirstName())
         );
     }
 
+//    Mark As Read
     @Transactional
     public void markAsRead(Long conversationId, Principal principal) {
+//        Get Email from Principal
         String email = principal.getName();
+//        Get User by email
         UserEntity currentProfile = userEntityRepository.findByEmail(email)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
+//        mark read to all unread messages
         int updated = messageRepository.markAllAsRead(conversationId, currentProfile.getId());
+
+//        read message (update) grater than 0
+//        broadcast read event to conversation id subscriber
         if (updated > 0) {
             messagingTemplate.convertAndSend(
                     "/topic/chat/" + conversationId + "/read",

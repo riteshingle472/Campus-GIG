@@ -59,14 +59,8 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(DraftException.class)
-    public ResponseEntity<ErrorResponse> handleDraftSaveException(DraftSaveException exception) {
+    public ResponseEntity<ErrorResponse> handleDraftException(DraftSaveException exception) {
         ErrorResponse errorResponse = new ErrorResponse(exception.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR.value());
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
-    }
-
-    @ExceptionHandler(EmailSendingException.class)
-    public ResponseEntity<ErrorResponse> handleEmailSendingException(EmailSendingException exception){
-        ErrorResponse errorResponse = new ErrorResponse(exception.getMessage(),HttpStatus.INTERNAL_SERVER_ERROR.value());
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
     }
 }

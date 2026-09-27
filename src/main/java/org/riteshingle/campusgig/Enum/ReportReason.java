@@ -1,15 +1,10 @@
 package org.riteshingle.campusgig.Enum;
 
 public enum ReportReason {
-
-    SCAM,
-    FRAUD,
-    HARASSMENT,
-    ABUSIVE_BEHAVIOR,
+    INAPPROPRIATE_BEHAVIOR,
     PAYMENT_ISSUE,
-    FAKE_PROFILE,
-    MISLEADING_INFORMATION,
-    WORK_NOT_DELIVERED,
-    AGREEMENT_VIOLATION,
+    POOR_QUALITY_WORK,
+    MISSED_DEADLINE,
+    FRAUD_OR_SCAM,
     OTHER
 }

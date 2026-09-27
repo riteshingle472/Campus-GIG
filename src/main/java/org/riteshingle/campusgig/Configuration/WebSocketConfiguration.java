@@ -16,9 +16,9 @@ public class WebSocketConfiguration implements WebSocketMessageBrokerConfigurer 
     private final JwtHandshakeInterceptor jwtHandshakeInterceptor;
     private final CustomHandshakeHandler customHandshakeHandler;
 
+
     @Override
     public void configureMessageBroker(MessageBrokerRegistry registry) {
-//        prefix mapping
         registry.setApplicationDestinationPrefixes("/app");
         registry.enableSimpleBroker("/topic", "/queue");
         registry.setUserDestinationPrefix("/user");
@@ -26,8 +26,8 @@ public class WebSocketConfiguration implements WebSocketMessageBrokerConfigurer 
 
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
-//        STOMP protocol
         registry.addEndpoint("/ws")
+//                .setAllowedOriginPatterns("http://localhost:5173")
                 .setAllowedOriginPatterns("*")
                 .addInterceptors(jwtHandshakeInterceptor)
                 .setHandshakeHandler(customHandshakeHandler)

@@ -39,16 +39,15 @@ import java.util.List;
 @EnableMethodSecurity
 @EnableWebSecurity
 public class Config {
-
     private final JwtRequestFilter jwtRequestFilter;
     private final RateLimitFilter rateLimitFilter;
     private final CustomUserDetailsService customUserDetailsService;
     private final CustomAdminUserDetailsService customAdminUserDetailsService;
 
-//    Filter Chain
+//    SECURITY FILTER CHAIN
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        // Disable CSRF for REST API
+                // Disable CSRF for REST API
         return http.csrf(AbstractHttpConfigurer::disable)
                 // Enable CORS
                 .cors(cors ->cors.configurationSource(corsConfigurationSource()))
@@ -72,25 +71,26 @@ public class Config {
                                 "/swagger-ui.html",
                                 "/swagger-ui/**"
                         ).permitAll()
-                        // Serve uploaded profile images publicly
-                        .requestMatchers("/uploads/**").permitAll()
-                        // Everything else requires authentication
+                                // Serve uploaded profile images publicly
+                                .requestMatchers("/uploads/**").permitAll()
+                           // Everything else requires authentication
                         .anyRequest().authenticated()
                 )
                 // Stateless authentication
-                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .sessionManagement(session ->
+                        session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 // JWT filter
                 .addFilterBefore(jwtRequestFilter, UsernamePasswordAuthenticationFilter.class)
                 .build();
     }
 
-//     PASSWORD ENCODER
+//    PASSWORD ENCODER
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
 
-//    AUTHENTICATION MANAGER
+//    USER AUTHENTICATION PROVIDER
     @Bean
     public AuthenticationProvider userAuthenticationProvider() {
         DaoAuthenticationProvider provider = new DaoAuthenticationProvider(customUserDetailsService);
@@ -98,6 +98,7 @@ public class Config {
         return provider;
     }
 
+//    ADMIN AUTHENTICATION PROVIDER
     @Bean
     public AuthenticationProvider adminAuthenticationProvider() {
         DaoAuthenticationProvider provider = new DaoAuthenticationProvider(customAdminUserDetailsService);
@@ -105,12 +106,14 @@ public class Config {
         return provider;
     }
 
+//    USER AUTHENTICATION MANAGER
     @Bean("userAuthenticationManager")
     @Primary
     public AuthenticationManager userAuthenticationManager() {
         return new ProviderManager(userAuthenticationProvider());
     }
 
+//    ADMIN AUTHENTICATION MANAGER
     @Bean("adminAuthenticationManager")
     public AuthenticationManager adminAuthenticationManager() {
         return new ProviderManager(adminAuthenticationProvider());
@@ -130,7 +133,7 @@ public class Config {
         configuration.setAllowCredentials(true);
         // Apply globally
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**",configuration);
+        source.registerCorsConfiguration("/**", configuration);
         return source;
     }
 
@@ -138,6 +141,7 @@ public class Config {
     @Bean
     public FilterRegistrationBean<CorsFilter> corsFilterRegistration() {
         FilterRegistrationBean<CorsFilter> registration = new FilterRegistrationBean<>();
+
         registration.setFilter(new CorsFilter(corsConfigurationSource()));
         registration.addUrlPatterns("/*");
 
@@ -146,12 +150,13 @@ public class Config {
         return registration;
     }
 
-//     GLOBAL RATE LIMIT FILTER
+//    GLOBAL RATE LIMIT FILTER
     @Bean
     public FilterRegistrationBean<RateLimitFilter> rateLimitFilterRegistration() {
         FilterRegistrationBean<RateLimitFilter> registration = new FilterRegistrationBean<>();
         registration.setFilter(rateLimitFilter);
         registration.addUrlPatterns("/*");
+
         // Run after CORS
         registration.setOrder(Ordered.HIGHEST_PRECEDENCE + 1);
         return registration;

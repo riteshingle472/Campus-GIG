@@ -17,13 +17,12 @@ import java.util.Set;
 @RequiredArgsConstructor
 @Transactional
 public class JwtUtils {
-    private String secreteKey = "jnddsksbvsbvvsshgjhcmvkjsfkjjssggjfggjfjhj  fgffjfhcfgkjlkbjhjgfguyfysdvcjhsgfgsjchsvjbb nslkshgffsndlkffsvjbjsbnsj";
+    private String secretKey = "jnddsksbvsbvvsshgjhcmvkjsfkjjssggjfggjfjhj  fgffjfhcfgkjlkbjhjgfguyfysdvcjhsgfgsjchsvjbb nslkshgffsndlkffsvjbjsbnsj";
 
     public SecretKey getKey() {
-        return Keys.hmacShaKeyFor(secreteKey.getBytes());
+        return Keys.hmacShaKeyFor(secretKey.getBytes());
     }
 
-//    Generate Token
     public String generateToken(String email, Date expiry, Set<Roles> roles) {
         String role = roles.iterator().next().name();
         return Jwts.builder()
@@ -35,7 +34,6 @@ public class JwtUtils {
                 .compact();
     }
 
-//    Extract All JWT Claims
     public Claims extractAllClaims(String token) {
         return Jwts.parser()
                 .verifyWith(getKey())
@@ -44,23 +42,19 @@ public class JwtUtils {
                 .getPayload();
     }
 
-//    Extract Email
     public String extractEmail(String token) {
         return extractAllClaims(token).getSubject();
     }
 
-//    Check JWT Expiry
     public Boolean isExpire(String token) {
         return extractAllClaims(token).getExpiration().before(new Date());
     }
 
-//    Validate Token
     public Boolean validateToken(String token, UserDetails userDetails) {
         String email = extractEmail(token);
         return (email.equals(userDetails.getUsername()) && !isExpire(token));
     }
 
-//    Extract Role
     public String extractRole(String token) {
         return extractAllClaims(token).get("role", String.class);
     }

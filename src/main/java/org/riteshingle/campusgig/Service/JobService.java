@@ -8,9 +8,9 @@ import org.riteshingle.campusgig.Model.*;
 import org.riteshingle.campusgig.Repository.*;
 import org.riteshingle.campusgig.RequestDTO.JobRequestDTO;
 import org.riteshingle.campusgig.ResponseDTO.GigResponseDTO;
+import org.riteshingle.campusgig.ResponseDTO.SkillResponseDTO;
 import org.riteshingle.campusgig.ResponseDTO.JobApplicantResponseDTO;
 import org.riteshingle.campusgig.ResponseDTO.JobResponseDTO;
-import org.riteshingle.campusgig.ResponseDTO.SkillResponseDTO;
 import org.riteshingle.campusgig.Specification.JobSpecification;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -41,6 +41,7 @@ public class JobService {
     private final RedisTemplate<String, Object> redisTemplate;
     private final NotificationService notificationService;
 
+
 //    For -> client
 //    publish Job
     public void publishJob(JobRequestDTO dto) {
@@ -55,19 +56,19 @@ public class JobService {
 //        Create Job Entity
         Job job = createJobEntity(dto);
 
-        if(dto.getDeadline().isBefore(LocalDate.now())){
-            throw new BadRequestException("Date does not be in past...");
-        }
+//        Validate DeadLine
+        if (dto.getDeadline() == null) throw new BadRequestException("Deadline is required");
+        if (dto.getDeadline().isBefore(LocalDate.now())) throw new BadRequestException("Deadline cannot be in the past");
 
-//        Check Experience , Work mode and Job status is valid or not ?
         job.setClient(client);
 //        job.setJobStatus(JobStatus.OPEN);
 
+//        Check Experience , Work mode and Job status is valid or not ?
        try{
            ExperienceLevel experienceLevel = ExperienceLevel.valueOf(dto.getExperienceLevel().trim().toUpperCase());
            job.setExperienceLevel(experienceLevel);
        }catch (Exception e){
-            throw new InvalidStatusException("Invalid Experience level : "+dto.getExperienceLevel());
+            throw new InvalidStatusException("Invalid Experience level : "+dto.getJobCategory());
        }
 
         try{
@@ -77,7 +78,7 @@ public class JobService {
                 throw new InvalidStatusException("Invalid Job Status : "+status.name());
 
             job.setJobStatus(status);
-        }catch (IllegalArgumentException e) {
+        }catch (Exception e) {
             throw new InvalidStatusException("Invalid Job Status: " + dto.getJobStatus());
         }
 
@@ -91,19 +92,17 @@ public class JobService {
 //        save in DB
         jobRepository.save(job);
 
-//        Check is draft ID is null or not ?
+//        Check draft ID is null or not ?
         if (dto.getDraftId() != null) {
 //            delete key from redis/Draft
             String key = "job:draft:" + client.getId() + ":" + dto.getDraftId();
             redisTemplate.delete(key);
         }
-
     }
 
 //    For -> GIG
 //    Get All Jobs
     public List<JobResponseDTO> getJobs(Pageable pageable, BigDecimal min,BigDecimal max) {
-
         Specification<Job> specification = JobSpecification.hasStatus(JobStatus.OPEN);
 
         if (max != null) specification = specification.and(JobSpecification.maxBudget(max));
@@ -111,8 +110,6 @@ public class JobService {
 
 //        Fetch all jobs
         List<Job> jobs = jobRepository.findAll(specification,pageable).getContent();
-
-//        return in Job response DTO list
         return jobs.stream().map(this::responseDTO).toList();
     }
 
@@ -126,8 +123,10 @@ public class JobService {
 //    For -> client
 //    Add job in Draft
     public void draftJob(JobRequestDTO dto) {
-        UserEntity client = authService.getCurrentProfile(); //Get Current logged-in profile
+//        Get Current logged-in profile
+        UserEntity client = authService.getCurrentProfile();
 
+//        Check Profile is verified or not
         if (!client.getIsVerified()) throw new ForbiddenException("You are not varified ..");
 
         validateDraft(dto);  //Check Experience , Work mode and Job status is valid or not ?
@@ -137,7 +136,6 @@ public class JobService {
             String key = "job:draft:" + client.getId() + ":" + draftId;  //creating redis key using userId and draftId
             dto.setDraftId(draftId);
             String json = objectMapper.writeValueAsString(dto);  //Convert CreateJobRequestDTO object in String JSON
-
             redisTemplate.opsForValue().set(key, json, Duration.ofDays(7));  //set key and object in redis with 7 days TTL
         } catch (Exception e) {
             throw new DraftSaveException("Failed to serialize draft");
@@ -150,22 +148,23 @@ public class JobService {
 //        get current logged-in user profile
         UserEntity client = authService.getCurrentProfile();
 
+//        Check profile is verified or not
         if (!client.getIsVerified()) throw new ForbiddenException("You are not varified ..");
 
 //        create key for redis
         String key = "job:draft:" + client.getId() + ":" + draftId;
+
 //        get value not null
         Object value = redisTemplate.opsForValue().get(key);
 
-        if (value == null) {
-            throw new ResourceNotFoundException("Draft not found for key: " + key);
-        }
+        if (value == null) throw new ResourceNotFoundException("Draft not found for key: " + key);
 
+//        Convert value in String
         String json = value.toString();
 
         try {
 //            return value in JSON
-            return objectMapper.readValue(json, JobRequestDTO.class);
+            return objectMapper.readValue   (json, JobRequestDTO.class);
         } catch (Exception e) {
             throw new DraftException("Failed to parse json..");
         }
@@ -260,24 +259,18 @@ public class JobService {
 
         validateDraft(dto);
 
-//        Check ( ) -> Job status must Open for edit Job
         if(job.getJobStatus().equals(JobStatus.DELETED) || job.getJobStatus().equals(JobStatus.DRAFT))
             throw new BadRequestException("Invalid Job status selection. Job is : "+job.getJobStatus());
 
         // Ownership check
-        if (!job.getClient().getId().equals(client.getId()))
-            throw new ForbiddenException("You are not authorized to edit this job");
+        if (!job.getClient().getId().equals(client.getId())) throw new ForbiddenException("You are not authorized to edit this job");
 
         if (dto.getTitle() != null) job.setTitle(dto.getTitle());
-
         if (dto.getDescription() != null) job.setDescription(dto.getDescription());
-
         if (dto.getDeadline() != null) job.setDeadline(dto.getDeadline());
-
         if (dto.getBudget() != null) job.setBudget(dto.getBudget());
 
 
-//        Check Experience level Job Category and Job status
         ExperienceLevel experienceLevel;
         if(dto.getExperienceLevel() != null){
             try{
@@ -338,22 +331,20 @@ public class JobService {
 //    For -> Client
 //    Get All Job Applicant
     public List<JobApplicantResponseDTO> getAllJobApplicants(Long jobId,Pageable pageable,String keyword) {
-//        Get Current Logged-in Profile
+//        Get Current logged-in profile
         UserEntity currentProfile = authService.getCurrentProfile();
-//        Fetch Job by job id
+//        Get Job by ID
         Job job = jobRepository.findById(jobId).orElseThrow(() -> new ResourceNotFoundException("Job not found with id: " + jobId));
 
-//        check Profile is verified or not
-        if(!currentProfile.getIsVerified()){
-           throw new ForbiddenException("Your not authorized to accept the job proposal ..");
-        }
+//        Check Profile is verified or not
+        if(!currentProfile.getIsVerified())
+           throw new ForbiddenException("You are not authorized to view applicants — please verify your account.");
 
 //        Check Client Authority
-        if(!currentProfile.getId().equals(job.getClient().getId())){
+        if(!currentProfile.getId().equals(job.getClient().getId()))
             throw new UnauthorizedException("You are not authorized to modify this job");
-        }
 
-//        Validate status
+//        Validate Job Application Status
         JobApplicationStatus status;
         try {
             status = JobApplicationStatus.valueOf(keyword.trim().toUpperCase());
@@ -361,56 +352,52 @@ public class JobService {
             throw new InvalidStatusException("Invalid Job Application Status : "+keyword);
         }
 
-//        fetch All jobApplication by Job and Job Status
+//        Fetch All job applicants by Job and Job Application Status
         List<JobApplication> jobApplicant = jobApplicationRepository.findJobApplicants(job,pageable,status).getContent();
         return jobApplicant.stream().map(this::jobApplicantResponse).toList();
     }
 
 //    For -> Client
 //    Get all job posted by client
-    public List<JobResponseDTO> getAllJobsPostByMe(String status,Pageable pageable) {
-//        Get Current Logged-in Profile
+    public List<JobResponseDTO> getAllJobsPostByMe(String status, Pageable pageable) {
+//        Get Current logged-in profile
         UserEntity client = authService.getCurrentProfile();
 
 //        Validate Job Status
         JobStatus jobStatus;
-        try {
-            jobStatus = JobStatus.valueOf(status.toUpperCase().trim());
-        }catch (Exception e){
-            throw new InvalidStatusException("Invalid Job Status : "+status);
-        }
+        try {jobStatus = JobStatus.valueOf(status.toUpperCase().trim());}
+        catch (Exception e){throw new InvalidStatusException("Invalid Job Status : "+status);}
 
-//        Fetch All Posted Job By Client id and status
-        List<Job> jobs = jobRepository.findJobsByClientIdAndStatus(client.getId(),jobStatus,pageable);
+//        Fetch All Jobs
+        List<Job> jobs = jobRepository.findJobsByClientIdAndStatus(client.getId(), jobStatus, pageable).getContent();
         return jobs.stream().map(this::responseDTO).toList();
     }
 
 //    For -> client
 //    Accept Job Application
     public void acceptJobProposal(Long jobId, Long applicationId) {
-//        Get current Logged-in Profile
-        UserEntity currentProfile = authService.getCurrentProfile();
-//        Fetch Job by Job id
+//        Get Job by ID
         Job job = jobRepository.findById(jobId).orElseThrow(() -> new ResourceNotFoundException("Job not found by ID : "+jobId));
-//        Fetch Job Application by job application id
+//        Get Job Application by ID
         JobApplication jobApplication = jobApplicationRepository.findById(applicationId).orElseThrow(() -> new ResourceNotFoundException("Job application not found by ID : "+applicationId));
+//        Get Current Logged-in Profile
+        UserEntity currentProfile = authService.getCurrentProfile();
 
 //        Check Client Authority
         if (!currentProfile.getId().equals(job.getClient().getId()))
             throw new ForbiddenException("Your not authorized to accept the job proposal ..");
 
-        if (!jobApplication.getJob().getId().equals(jobId)) {
-            throw new ForbiddenException("This application doesn't belong to this job..");
-        }
+//        Check JobApplication belong to Job
+        if (!jobApplication.getJob().getId().equals(jobId))
+            throw new ForbiddenException("This application does not belong to this job..");
 
-//        Check Job Application Status
         if(jobApplication.getJobApplicationStatus().equals(JobApplicationStatus.ACCEPTED) ||
-                jobApplication.getJobApplicationStatus().equals(JobApplicationStatus.REJECTED) ||
-                jobApplication.getJobApplicationStatus().equals(JobApplicationStatus.WITHDRAWN)) {
+        jobApplication.getJobApplicationStatus().equals(JobApplicationStatus.REJECTED) ||
+        jobApplication.getJobApplicationStatus().equals(JobApplicationStatus.WITHDRAWN)){
             throw new InvalidStatusException("Application is already "+jobApplication.getJobApplicationStatus()+"...");
         }
 
-//        Reject All Job Application and Save in DB
+//        Reject All Proposal except one
         List<JobApplication> applicantsList = jobApplicationRepository.findByJob(job);
         for (JobApplication application : applicantsList) {
             if((application.getJobApplicationStatus().equals(JobApplicationStatus.APPLIED)
@@ -421,21 +408,23 @@ public class JobService {
             }
         }
 
+//        Save all rejected Proposals in DB
         jobApplicationRepository.saveAll(applicantsList);
-//        Set Job status closed
+
+//        Set Job Closed and save it in DB
         job.setJobStatus(JobStatus.CLOSED);
         jobRepository.save(job);
 
+//        Set Job Application Accepted and save in DB
         jobApplication.setJobApplicationStatus(JobApplicationStatus.ACCEPTED);
         jobApplicationRepository.save(jobApplication);
 
-//        Create Contract
+//        Creating contract and conversation or chat
         Contract contract = contractService.createContract(job,jobApplication);
         contractRepository.save(contract);
-//        Create Conversation for Chatting
+
         Conversation conversation = Conversation.builder().contract(contract).build();
         conversationRepository.save(conversation);
-
         notificationService.notify(
                 contract.getGig().getUser(),
                 NotificationType.CONTRACT_CREATED,
@@ -445,18 +434,20 @@ public class JobService {
         );
     }
 
-//    Reject Job Proposal
+//    Reject Proposals
     public void rejectJobProposal(Long applicationId){
 //        Get Current Logged-in Profile
         UserEntity client = authService.getCurrentProfile();
-//        Get Job Application by job application id
+//        Get Job Application by ID
         JobApplication jobApplication = jobApplicationRepository.findById(applicationId).orElseThrow(() -> new ResourceNotFoundException("Job application not found .."));
 
+//        Get Client ID
         Long clientId = jobApplication.getJob().getClient().getId();
 
-//        Check Client Authority
-        if(!client.getId().equals(clientId))
+//        Verify Client
+        if(!client.getId().equals(clientId)){
             throw new ForbiddenException("Your not authorized to reject the Job Application ..");
+        }
 
         if(jobApplication.getJobApplicationStatus().equals(JobApplicationStatus.REJECTED)
                 || jobApplication.getJobApplicationStatus().equals(JobApplicationStatus.ACCEPTED)
@@ -464,30 +455,31 @@ public class JobService {
             throw new InvalidStatusException("Job Application is already "+jobApplication.getJobApplicationStatus()+"..");
         }
 
-//        Set Application status Reject and save in DB
+//        Reject Proposal
         jobApplication.setJobApplicationStatus(JobApplicationStatus.REJECTED);
         jobApplicationRepository.save(jobApplication);
     }
 
-
 //    For -> client
 //    Shortlist Job Application
     public void shortlistJobProposal(Long applicationId) {
+//        Get Current Logged-in Profile
         UserEntity client = authService.getCurrentProfile();
-        JobApplication jobApplication = jobApplicationRepository.findById(applicationId)
-                .orElseThrow(() -> new ResourceNotFoundException("Job application not found .."));
-
+//        Get Job Application by ID
+        JobApplication jobApplication = jobApplicationRepository.findById(applicationId).orElseThrow(() -> new ResourceNotFoundException("Job application not found .."));
+//        Get Client ID
         Long clientId = jobApplication.getJob().getClient().getId();
 
-        if (!client.getId().equals(clientId)) {
+//        Verify Client
+        if (!client.getId().equals(clientId))
             throw new ForbiddenException("You're not authorized to shortlist this proposal ..");
-        }
 
         if (jobApplication.getJobApplicationStatus().equals(JobApplicationStatus.REJECTED)
                 || jobApplication.getJobApplicationStatus().equals(JobApplicationStatus.ACCEPTED)
                 || jobApplication.getJobApplicationStatus().equals(JobApplicationStatus.WITHDRAWN)
                 || jobApplication.getJobApplicationStatus().equals(JobApplicationStatus.SHORTLISTED)) {
-            throw new InvalidStatusException("Job Proposal is already " + jobApplication.getJobApplicationStatus() + "..");
+            throw new InvalidStatusException(
+                    "Job Proposal is already " + jobApplication.getJobApplicationStatus() + "..");
         }
 
         jobApplication.setJobApplicationStatus(JobApplicationStatus.SHORTLISTED);
@@ -508,8 +500,8 @@ public class JobService {
 //        Check Job Category
         if (dto.getJobCategory() != null)
             if (isValidEnum(JobCategory.class, dto.getJobCategory()))
-                errors.add("Invalid experience level: " + dto.getJobCategory() +
-                        ". Allowed: " + Arrays.toString(ExperienceLevel.values()));
+                errors.add("Invalid job category: " + dto.getJobCategory() +
+                        ". Allowed: " + Arrays.toString(JobCategory.values()));
 
 //        Check Job Status
         if (dto.getJobStatus() != null)
@@ -540,6 +532,8 @@ public class JobService {
                 .deadline(job.getDeadline())
                 .experience(job.getExperienceLevel().name())
                 .jobStatus(job.getJobStatus().name())
+                .clientFirstName(job.getClient().getFirstName())   // NEW
+                .clientLastName(job.getClient().getLastName())     // NEW
                 .build();
     }
 
@@ -584,6 +578,7 @@ public class JobService {
         UserEntity user = gig.getUser();
 
         GigResponseDTO gigResponseDTO = GigResponseDTO.builder()
+                .id(gig.getId())                          // NEW
                 .gigFirstName(user.getFirstName())
                 .gigLastName(user.getLastName())
                 .gigEmail(user.getEmail())
@@ -596,16 +591,18 @@ public class JobService {
                 .availabilityStatus(gig.getAvailabilityStatus())
                 .build();
 
-        List<String> skills = userSkillsRepository.findSkillByGigId(gig.getId());
-        List<SkillResponseDTO> skillResponseDTOS = skills.stream()
+        List<String> skillNames = userSkillsRepository.findSkillByGigId(gig.getId());
+
+        List<SkillResponseDTO> skills = skillNames.stream()
                 .map(skillName -> SkillResponseDTO.builder()
                         .skill(skillName)
                         .build())
                 .toList();
 
-        gigResponseDTO.setGigSkills(skillResponseDTOS);
+        gigResponseDTO.setGigSkills(skills);
 
         return JobApplicantResponseDTO.builder()
+                .id(jobApplication.getId())
                 .jobApplicationStatus(jobApplication.getJobApplicationStatus().name())
                 .bidAmount(jobApplication.getBidAmount())
                 .coverLetter(jobApplication.getCoverLetter())
@@ -613,5 +610,6 @@ public class JobService {
                 .applyAt(jobApplication.getCreatedAt())
                 .gigResponseDTO(gigResponseDTO)
                 .build();
+
     }
 }

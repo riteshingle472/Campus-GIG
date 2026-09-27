@@ -8,6 +8,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.data.domain.Page;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -17,14 +18,13 @@ public interface ContractRepository extends JpaRepository<Contract, Long> {
     Optional<Contract> findByJobApplicationId(Long applicationId);
 
     @Query("""
-            SELECT c
-            FROM Contract c
-            WHERE (c.client = :user OR c.gig.user = :user)
-              AND (:status IS NULL OR c.contractStatus = :status)
-              AND (:fromDate IS NULL OR c.createdAt >= :fromDate)
-              AND (:toDate IS NULL OR c.createdAt <= :toDate)
+            SELECT c FROM Contract c
+            WHERE (c.client = :user OR c.gig.user = :user) 
+                AND (:status IS NULL OR c.contractStatus = :status)
+                AND (:fromDate IS NULL OR c.createdAt >= :fromDate)
+                AND (:toDate IS NULL OR c.createdAt <= :toDate)
             """)
-    List<Contract> findMyContracts(
+    Page<Contract> findMyContracts(
             @Param("user") UserEntity user,
             @Param("status") ContractStatus status,
             @Param("fromDate") LocalDateTime fromDate,

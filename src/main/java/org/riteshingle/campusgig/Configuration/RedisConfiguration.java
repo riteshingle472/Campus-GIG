@@ -30,7 +30,6 @@ public class RedisConfiguration {
 
     @Bean
     public RedisCacheManager redisCacheManager(RedisConnectionFactory connectionFactory){
-
         RedisCacheConfiguration configuration = RedisCacheConfiguration.defaultCacheConfig()
                 .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(new GenericJacksonJsonRedisSerializer(new ObjectMapper())))
                 .entryTtl(Duration.ofMinutes(5));

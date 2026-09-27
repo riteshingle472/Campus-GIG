@@ -18,6 +18,7 @@ import java.util.Map;
 public class NotificationController {
     private final NotificationService notificationService;
 
+//    Notify though Web socket
     @PreAuthorize("hasRole('CLIENT') or hasRole('GIG')")
     @GetMapping
     public ResponseEntity<Page<NotificationResponseDTO>> getMyNotifications(
@@ -27,12 +28,14 @@ public class NotificationController {
         return ResponseEntity.ok(notificationService.getMyNotifications(pageable));
     }
 
+//    Count Unread notification
     @PreAuthorize("hasRole('CLIENT') or hasRole('GIG')")
     @GetMapping("/unread-count")
     public ResponseEntity<Map<String, Long>> getUnreadCount() {
         return ResponseEntity.ok(Map.of("count", notificationService.getUnreadCount()));
     }
 
+//    Mark read all notification
     @PreAuthorize("hasRole('CLIENT') or hasRole('GIG')")
     @PatchMapping("/mark-all-read")
     public ResponseEntity<?> markAllAsRead() {

@@ -3,13 +3,18 @@ package org.riteshingle.campusgig.Service;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.riteshingle.campusgig.Enum.*;
-import org.riteshingle.campusgig.Exception.*;
+import org.riteshingle.campusgig.Exception.BadRequestException;
+import org.riteshingle.campusgig.Exception.ConflictException;
+import org.riteshingle.campusgig.Exception.InvalidStatusException;
+import org.riteshingle.campusgig.Exception.ResourceNotFoundException;
+import org.riteshingle.campusgig.Exception.UnauthorizedException;
 import org.riteshingle.campusgig.JwtUtils.JwtUtils;
 import org.riteshingle.campusgig.Model.*;
 import org.riteshingle.campusgig.Repository.*;
 import org.riteshingle.campusgig.RequestDTO.AdminAuthDTO;
 import org.riteshingle.campusgig.RequestDTO.AdminSendMailRequestDTO;
 import org.riteshingle.campusgig.ResponseDTO.*;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
@@ -42,23 +47,27 @@ public class AdminService {
     private final JwtUtils jwtUtils;
     private final AdminRefreshTokenRepository adminRefreshTokenRepository;
     private final AdminRepository adminRepository;
-    private final AuthenticationManager authenticationManager;
+    private final AuthenticationManager adminAuthenticationManager;
 
-//    Register User
+
+//    Register Admin
     public void register(AdminAuthDTO dto)  {
-//        Check user is already exists or not ?
+//        Check Email is already present or not in DB
         Optional<Admin> byEmail = adminRepository.findByEmail(dto.getEmail());
-        if (byEmail.isPresent()){
-            throw new ConflictException("Admin already Exists with : " + dto.getEmail());
-        }
 
+//        Throw Conflict Exception if admin already present
+        if (byEmail.isPresent())
+            throw new ConflictException("Admin already Exists with : " + dto.getEmail());
+
+//        Set Role Admin
         Set<Roles> roles = Set.of(Roles.ADMIN);
 
-//        Create User Entity and Save in DB
+//        Creating Admin and save in DB
         Admin admin = Admin.builder()
                 .password(passwordEncoder.encode(dto.getPassword()))
                 .email(dto.getEmail())
-                .fullName(dto.getFullName())      // NEW
+                .fullName(dto.getFullName())
+                .contactNo(dto.getContactNo())
                 .roles(roles)
                 .adminStatus(AdminStatus.ACTIVE)
                 .adminAccessStatus(AdminAccessStatus.PENDING)
@@ -67,18 +76,20 @@ public class AdminService {
         adminRepository.save(admin);
     }
 
+//    Admin Login
     public Map<String, String> login(AdminAuthDTO dto, HttpServletResponse response) {
 //        Token Expiry
-        Date ACCESS_TOKEN_EXPIRY = new Date(System.currentTimeMillis() + (15 * 60 * 1000));
         Date REFRESH_TOKEN_EXPIRY = new Date(System.currentTimeMillis() + (7 * 24 * 60 * 60 * 1000));
+        Date ACCESS_TOKEN_EXPIRY = new Date(System.currentTimeMillis() + (7 * 24 * 60 * 60 * 1000));
 
-        authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(dto.getEmail(),dto.getPassword()));
+//        Get Admin By email
+        Admin admin = adminRepository.findByEmail(dto.getEmail())
+                .orElseThrow(() -> new UnauthorizedException("Invalid email or password"));
 
+//        Authentication Manager for matching password
+        adminAuthenticationManager.authenticate(new UsernamePasswordAuthenticationToken(dto.getEmail(),dto.getPassword()));
 
-//        Get a user by Email
-        Admin admin = adminRepository.findByEmail(dto.getEmail()).orElseThrow(() -> new ResourceNotFoundException("User not found"));
-
-//        NEW: enforce access approval status — PENDING/DENIAL admins cannot log in
+        //   NEW: enforce access approval status — PENDING/DENIAL admins can't log in
         if (admin.getAdminAccessStatus() == AdminAccessStatus.PENDING) {
             throw new UnauthorizedException("Your admin access is still pending approval");
         }
@@ -86,85 +97,81 @@ public class AdminService {
             throw new UnauthorizedException("Your admin access request was denied");
         }
 
-//        Get RefreshToken By user
+//        Check admin refresh token in DB by Admin
         Optional<AdminRefreshToken> byAdmin = adminRefreshTokenRepository.findByAdmin(admin);
         AdminRefreshToken adminRefreshToken;
         String refresh;
 
-//        If user is present
         if (byAdmin.isPresent()) {
+//            Get existing Refresh Token
             adminRefreshToken = byAdmin.get();
             boolean tokenExpired;
 
-//            Check is token expire or not
-            try {
-                tokenExpired = jwtUtils.isExpire(adminRefreshToken.getRefreshToken());
-            } catch (Exception e) {
-                tokenExpired = true;
-            }
+//            Check token is Expired or not
+            try {tokenExpired = jwtUtils.isExpire(adminRefreshToken.getRefreshToken());}
+            catch (Exception e) {tokenExpired = true;}
 
-//            If token is expired then generate new token and save in DB
+//            If token is expired then create new token and save in DB
             if (tokenExpired) {
-                refresh = jwtUtils.generateToken(dto.getEmail(), REFRESH_TOKEN_EXPIRY,admin.getRoles());
+                refresh = jwtUtils.generateToken(dto.getEmail(), REFRESH_TOKEN_EXPIRY, admin.getRoles());
                 adminRefreshToken.setRefreshToken(refresh);
                 adminRefreshTokenRepository.save(adminRefreshToken);
-            }
-//            If token is not expired then get existing one
-            else {
+            } else {
+//                If token is not expired then getting existing token
                 refresh = adminRefreshToken.getRefreshToken();
             }
         }
-//        Create a new entity and Generate token and save in DB
+//        Creating new AdminRefreshToken and saving in DB if RefreshToken isn't present
         else {
-            refresh = jwtUtils.generateToken(dto.getEmail(), REFRESH_TOKEN_EXPIRY,admin.getRoles());
+            refresh = jwtUtils.generateToken(dto.getEmail(), REFRESH_TOKEN_EXPIRY, admin.getRoles());
             adminRefreshToken = AdminRefreshToken.builder().refreshToken(refresh).admin(admin).build();
             adminRefreshTokenRepository.save(adminRefreshToken);
         }
 
-//        Set refresh token in cookie
+//        Set Refresh Token in Cookies for 7 Days
         ResponseCookie cookie = ResponseCookie.from("RefreshToken", refresh)
                 .httpOnly(true)
                 .secure(false)
-                .path("/auth/refresh-token")
+                .path("/api/auth/refresh-token")
                 .maxAge(Duration.ofDays(7))
                 .sameSite("Lax")
                 .build();
         response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
 
-//        Generate and Return Access token
-        try {
-            String accessToken = jwtUtils.generateToken(dto.getEmail(), ACCESS_TOKEN_EXPIRY,admin.getRoles());
-            return Map.of("Access Token", accessToken);
-        } catch (Exception e) {
-            throw new RuntimeException("Invalid Credential");
-        }
+//        Generating new Access Token
+        String accessToken = jwtUtils.generateToken(dto.getEmail(), ACCESS_TOKEN_EXPIRY, admin.getRoles());
+        return Map.of("Access Token", accessToken);
     }
 
-//    Admin Dashboard Stats Card
+//    Dashboard Stats
     public AdminDashboardCardStatsResponseDTO dashboardCardStats(LocalDate from, LocalDate to,
                                                                  String jobApplicationStatus,
                                                                  String jobStatus,String contractStatus,
                                                                  String reportStatus) {
-//       Verify Date
+
+//        From date cannot be after to date
         if (from != null && to != null && from.isAfter(to)) {
             throw new BadRequestException("From date cannot be after to date");
         }
 
+//        to date can't be future date
         if (to != null && to.isAfter(LocalDate.now())) {
             throw new BadRequestException("To date cannot be in the future");
         }
 
+//        Set From and To date
         LocalDateTime startFrom = from == null ? LocalDate.now().atStartOfDay() : from.atStartOfDay();
         LocalDateTime endTo = to == null ? LocalDate.now().atTime(LocalTime.MAX) : to.atTime(LocalTime.MAX);
 
+//        Validate and get Job Application Status
         JobApplicationStatus applicationStatus;
-
         try {
             applicationStatus = JobApplicationStatus.valueOf(jobApplicationStatus.trim().toUpperCase());
         }catch (Exception e){
             throw new InvalidStatusException("Invalid Job Application Status : "+jobApplicationStatus);
         }
 
+//        Validate and get Job Status
         JobStatus status;
         try {
             status  = JobStatus.valueOf(jobStatus.trim().toUpperCase());
@@ -172,6 +179,7 @@ public class AdminService {
             throw new InvalidStatusException("Invalid Job Status : "+jobStatus);
         }
 
+//        Validate and get Contract Status
         ContractStatus cs;
         try {
             cs = ContractStatus.valueOf(contractStatus.trim().toUpperCase());
@@ -179,6 +187,7 @@ public class AdminService {
             throw new InvalidStatusException("Invalid Contract Status : "+contractStatus);
         }
 
+//        Validate and get Report Status
         ReportStatus adminReportStatus;
         try {
             adminReportStatus = ReportStatus.valueOf(reportStatus.trim().toUpperCase());
@@ -186,71 +195,61 @@ public class AdminService {
             throw new InvalidStatusException("Invalid Report Status : "+reportStatus);
         }
 
-//        Total CLIENT from date to date
+//        Get Total Client , User , GIG , Job Application , Job , Contract and Reports
         Long totalClient = userEntityRepository.findTotalUserByStatus(Roles.CLIENT, startFrom, endTo);
-
-//        Total USER from date to date
         Long totalUSER = userEntityRepository.findTotalUserByStatus(Roles.USER, startFrom, endTo);
-
-//        Total GIG from date to date
         Long totalGIG = gigRepository.findTotalGIGByStatus(startFrom, endTo);
-
-//        Total Job Application from date to date
         Long totalJobApplication = jobApplicationRepository.findTotalJobApplicationByStatus(applicationStatus, startFrom, endTo);
-
-//        Total Open Jobs from date to date
         Long totalOpenJob = jobRepository.findTotalJobByStatus(status, startFrom, endTo);
-
-//        Total Contract from date to date
         Long totalContract = contractRepository.findTotalContractByStatus(cs, startFrom, endTo);
-
         Long totalReport = reportRepository.findTotalReportByStatus(adminReportStatus, startFrom, endTo);
-
 
         return AdminDashboardCardStatsResponseDTO.builder()
                 .totalJob(totalOpenJob)
                 .totalGIG(totalGIG)
+                .totalReport(totalReport)
                 .totalClient(totalClient)
                 .totalContract(totalContract)
                 .totalJobApplication(totalJobApplication)
                 .totalUser(totalUSER)
-                .totalReport(totalReport)
                 .build();
     }
 
 //    Most Popular Job
     public List<AdminDashboardMostPopularJobResponseDTO> mostPopularJob(LocalDate from, LocalDate to) {
-//        Verify Dates
+
+//        From date can't be after then To date
         if (from != null && to != null && from.isAfter(to))
             throw new BadRequestException("From date cannot be after to date");
 
+//        To date can't in future
         if (to != null && to.isAfter(LocalDate.now()))
             throw new BadRequestException("To date cannot be in the future");
 
+//        Set From and To date
         LocalDateTime startFrom = from == null ? LocalDate.now().atStartOfDay() : from.atStartOfDay();
         LocalDateTime endTo = to == null ? LocalDateTime.now() : to.atTime(LocalTime.MAX);
 
-        if (startFrom.isAfter(LocalDateTime.now())) {
+//        startFrom can't in future
+        if (startFrom.isAfter(LocalDateTime.now()))
             throw new BadRequestException("From date cannot be a future date");
-        }
 
-        if (endTo.isAfter(LocalDateTime.now().plusDays(1))) {
+//        endTo can't in future
+        if (endTo.isAfter(LocalDateTime.now().plusDays(1)))
             throw new BadRequestException("To date cannot be a future date");
-        }
 
-//        Fetch all Job Category and their count
+//        Fetching Most Popular Jobs
+//        Getting Most Popular Jobs in the form of Object Array
         List<Object[]> popularJob = jobRepository.findPopularJobCategories(startFrom, endTo);
-
-//        Map popular Job in DTO
+//        Converting in Response DTO
         return popularJob.stream().map(job -> new AdminDashboardMostPopularJobResponseDTO(
                 (Long) job[1],
                 (JobCategory) job[0]
         )).toList();
     }
 
-//    Growth Chart
+    //    CHANGED: RuntimeException -> BadRequestException
     public List<GrowthChartResponseDTO> growthChart(LocalDate from,LocalDate to) {
-//        Verify Date
         if (from != null && to != null && from.isAfter(to))
             throw new BadRequestException("From date cannot be after to date");
 
@@ -258,187 +257,126 @@ public class AdminService {
             throw new BadRequestException("To date cannot be in the future");
 
         LocalDateTime localDateTime = LocalDateTime.now();
+
         LocalDateTime startFrom = from == null ? localDateTime.with(TemporalAdjusters.firstDayOfMonth()).with(LocalTime.MIN) : from.atStartOfDay();
+
         LocalDateTime endTo = LocalDateTime.now();
 
         if (startFrom.isAfter(LocalDateTime.now())) {
             throw new BadRequestException("From date cannot be a future date");
         }
 
-//         Fetch daily growth data for users, gigs, clients, jobs and applications
         List<Object[]> userGrowth = userEntityRepository.getUserGrowth(Roles.USER, startFrom, endTo);
         List<Object[]> gigGrowth = gigRepository.getGigGrowth(startFrom, endTo);
         List<Object[]> clientGrowth = userEntityRepository.getClientGrowth(Roles.CLIENT, startFrom, endTo);
         List<Object[]> jobGrowth = jobRepository.getJobGrowth(startFrom, endTo);
         List<Object[]> applicationGrowth = jobApplicationRepository.getApplicationGrowth(startFrom,endTo);
 
-//         TreeMap keeps the growth data sorted by date
         Map<LocalDate, GrowthChartResponseDTO> growthMap = new TreeMap<>();
 
-//        Add user growth data to the map
         for (Object[] row : userGrowth) {
             LocalDate date = ((java.sql.Date) row[0]).toLocalDate();
             Long count = (Long) row[1];
-
             GrowthChartResponseDTO dto = growthMap.computeIfAbsent(date,
-                    d -> GrowthChartResponseDTO.builder()
-                            .date(d)
-                            .users(0L)
-                            .gigs(0L)
-                            .clients(0L)
-                            .jobs(0L)
-                            .applications(0L)
-                            .build()
-            );
-//            Set the number of Users created on this date
+                    d -> GrowthChartResponseDTO.builder().date(d).users(0L).gigs(0L).clients(0L).jobs(0L).applications(0L).build());
             dto.setUsers(count);
         }
 
-//        Add GIG growth data to the map
         for (Object[] row : gigGrowth) {
             LocalDate date = ((java.sql.Date) row[0]).toLocalDate();
             Long count = (Long) row[1];
-
             GrowthChartResponseDTO dto = growthMap.computeIfAbsent(date,
-                    d -> GrowthChartResponseDTO.builder()
-                            .date(d)
-                            .users(0L)
-                            .gigs(0L)
-                            .clients(0L)
-                            .jobs(0L)
-                            .applications(0L)
-                            .build()
-            );
-
-//            Set the number of GIG created on this date
+                    d -> GrowthChartResponseDTO.builder().date(d).users(0L).gigs(0L).clients(0L).jobs(0L).applications(0L).build());
             dto.setGigs(count);
         }
 
-//        Add Client growth data to the map
         for (Object[] row : clientGrowth) {
-
             LocalDate date = ((java.sql.Date) row[0]).toLocalDate();
             Long count = (Long) row[1];
-
             GrowthChartResponseDTO dto = growthMap.computeIfAbsent(date,
-                    d -> GrowthChartResponseDTO.builder()
-                            .date(d)
-                            .users(0L)
-                            .gigs(0L)
-                            .clients(0L)
-                            .jobs(0L)
-                            .applications(0L)
-                            .build()
-            );
-//            Set the number of Client created on this date
+                    d -> GrowthChartResponseDTO.builder().date(d).users(0L).gigs(0L).clients(0L).jobs(0L).applications(0L).build());
             dto.setClients(count);
         }
 
-//        Add Job Application growth data to the map
         for (Object[] row : applicationGrowth) {
-
             LocalDate date = ((java.sql.Date) row[0]).toLocalDate();
             Long count = (Long) row[1];
-
             GrowthChartResponseDTO dto = growthMap.computeIfAbsent(date,
-                    d -> GrowthChartResponseDTO.builder()
-                            .date(d)
-                            .users(0L)
-                            .gigs(0L)
-                            .clients(0L)
-                            .jobs(0L)
-                            .applications(0L)
-                            .build()
-            );
-
-//            Set the number of Job Application created on this date
+                    d -> GrowthChartResponseDTO.builder().date(d).users(0L).gigs(0L).clients(0L).jobs(0L).applications(0L).build());
             dto.setApplications(count);
         }
 
-//        Add Job growth data to the map
         for (Object[] row : jobGrowth) {
-
             LocalDate date = ((java.sql.Date) row[0]).toLocalDate();
             Long count = (Long) row[1];
-
             GrowthChartResponseDTO dto = growthMap.computeIfAbsent(date,
-                    d -> GrowthChartResponseDTO.builder()
-                            .date(d)
-                            .users(0L)
-                            .gigs(0L)
-                            .clients(0L)
-                            .jobs(0L)
-                            .applications(0L)
-                            .build()
-            );
-//            Set the number of Job created on this date
+                    d -> GrowthChartResponseDTO.builder().date(d).users(0L).gigs(0L).clients(0L).jobs(0L).applications(0L).build());
             dto.setJobs(count);
         }
 
         return new ArrayList<>(growthMap.values());
     }
 
-//    Email Service For Admin
-    public void adminMail(AdminSendMailRequestDTO requestDTO){
-        boolean exists = userEntityRepository.existsByEmail(requestDTO.getTo());
-        if(!exists) throw new ResourceNotFoundException("User not exists by : "+requestDTO.getTo());
-        notificationService.sendMail(requestDTO.getTo(),requestDTO.getSubject(),requestDTO.getBody());
-    }
+//    public void adminMail(AdminSendMailRequestDTO requestDTO){
+//        boolean exists = userEntityRepository.existsByEmail(requestDTO.getTo());
+//        if(!exists) throw new ResourceNotFoundException("User not exists by : "+requestDTO.getTo());
+//        notificationService.sendMail(requestDTO.getTo(),requestDTO.getSubject(),requestDTO.getBody());
+//    }
 
-//    Earning Chart/Board
-
-
-//    Management API's
-
-    //    GIG
+//    Get Gig by ID
     public AdminGigResponseDTO gig(Long gigId) {
         GIG gig = gigRepository.findById(gigId).orElseThrow(() -> new ResourceNotFoundException("GIG not found by ID : " + gigId));
         return adminGigResponseDTO(gig);
     }
 
-    //    GIG list
+//    Fetch All GIGs
     public List<AdminGigResponseDTO> gigs(Pageable pageable) {
         return gigRepository.findAll(pageable).stream().map(this::adminGigResponseDTO).toList();
     }
 
-    //    Client
+//    Get Client by ID
     public AdminUserAndClientResponseDTO client(Long clientId) {
         UserEntity userEntity = userEntityRepository.findById(clientId).orElseThrow(() -> new ResourceNotFoundException("Client not found by ID : "+clientId));
         return userAndClientResponseDTO(userEntity);
     }
 
-    //    Client List
+//    Fetch All Clients
     public List<AdminUserAndClientResponseDTO> clients(Pageable pageable) {
         return userEntityRepository.findAll(pageable).stream().map(this::userAndClientResponseDTO).toList();
     }
 
-    //    Job
+//    Get Job by ID
     public AdminJobResponseDTO job(Long jobId) {
+//        Get Job By ID
         Job job = jobRepository.findById(jobId).orElseThrow(() -> new ResourceNotFoundException("Job not found by ID : "+jobId));
+//        Convert Job in AdminJobResponseDTO
         AdminJobResponseDTO adminJobResponseDTO = jobResponseDTO(job);
+//        Set Job Client
         adminJobResponseDTO.setClientResponseDTO(userAndClientResponseDTO(job.getClient()));
+//        Return Response
         return adminJobResponseDTO;
     }
 
-    //    Jobs
+//    Fetch All Jobs
     public List<AdminJobResponseDTO> jobs(Pageable pageable) {
         List<Job> jobs = jobRepository.findAll(pageable).getContent();
+//        Convert into JobResponseDTO and Return
         return jobs.stream().map(this::jobResponseDTO).toList();
     }
 
-//    Job Application
+//    Get Job Application by ID
     public AdminJobApplicationResponseDTO jobApplication(Long jobApplicationId) {
         JobApplication jobApplication = jobApplicationRepository.findById(jobApplicationId).orElseThrow(() -> new ResourceNotFoundException("Job Application not found by Job Application ID : "+jobApplicationId));
         return jobApplicationResponseDTO(jobApplication);
     }
 
-//    Job Applications
+//    Fetch All Job Application
     public List<AdminJobApplicationListResponseDTO> jobApplications(Pageable pageable){
         List<JobApplication> content = jobApplicationRepository.findAll(pageable).getContent();
         return content.stream().map(this::jobApplicationListResponseDTO).toList();
     }
 
-//    Reports
+//    Fetch All Reports
     public List<AdminReportListResponseDTO> reports(Pageable pageable){
         List<Report> content = reportRepository.findAll(pageable).getContent();
         return content.stream().map(report -> AdminReportListResponseDTO.builder()
@@ -452,14 +390,13 @@ public class AdminService {
         ).toList();
     }
 
-//    Report
-    public ReportResponseDTO report(Long reportId){
+//    Get Report By ID
+    public AdminReportResponseDTO report(Long reportId){
         Report report = reportRepository.findById(reportId).orElseThrow(() -> new ResourceNotFoundException("Report not found by ID : "+reportId));
         return reportResponseDTO(report);
     }
 
-
-    //    Helper method
+    //    Helper methods (unchanged)
     private AdminGigResponseDTO adminGigResponseDTO(GIG gig) {
         AdminUserAndClientResponseDTO owner = userAndClientResponseDTO(gig.getUser());
         List<String> skills = userSkillsRepository.findSkillByGigId(gig.getId());
@@ -492,7 +429,6 @@ public class AdminService {
                 .isVerified(user.getIsVerified())
                 .dob(user.getDob())
                 .build();
-
     }
 
     private AdminJobResponseDTO jobResponseDTO(Job job) {
@@ -522,8 +458,8 @@ public class AdminService {
                 .build();
     }
 
-    private ReportResponseDTO reportResponseDTO(Report report) {
-        return ReportResponseDTO.builder()
+    private AdminReportResponseDTO reportResponseDTO(Report report) {
+        return AdminReportResponseDTO.builder()
                 .reportStatus(report.getReportStatus().name())
                 .adminRemark(report.getAdminRemark() == null ? null : report.getAdminRemark())
                 .description(report.getDescription())
@@ -533,7 +469,6 @@ public class AdminService {
                 .resolvedAt(report.getResolveAt() == null ? null : report.getResolveAt())
                 .contractResponseDTO(contractResponseDTO(report.getContract()))
                 .build();
-
     }
 
     private AdminContractResponseDTO contractResponseDTO(Contract contract){
@@ -563,6 +498,5 @@ public class AdminService {
                 .status(jobApplication.getJobApplicationStatus().name())
                 .id(jobApplication.getId())
                 .build();
-
     }
 }

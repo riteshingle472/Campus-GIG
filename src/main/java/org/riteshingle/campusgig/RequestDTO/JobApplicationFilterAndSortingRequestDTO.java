@@ -11,4 +11,5 @@ public class JobApplicationFilterAndSortingRequestDTO {
     private BigDecimal maxBidAmount;
     private String sortDirection;
     private String sortByField;
+    private Long id;
 }

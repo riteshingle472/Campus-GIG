@@ -19,14 +19,11 @@ import java.util.Optional;
 
 @Repository
 public interface JobApplicationRepository extends JpaRepository<JobApplication, Long>, JpaSpecificationExecutor<JobApplication> {
-    @Query("""
-                SELECT ja
-                FROM JobApplication ja
-                WHERE ja.gig.id = :gigId AND ja.job.id = :jobId
-                """)
-    Optional<JobApplication> findByGigAndJob(
+    @Query("SELECT ja FROM JobApplication ja WHERE ja.gig.id = :gigId AND ja.job.id = :jobId AND ja.jobApplicationStatus = :status")
+    Optional<JobApplication> findByGigAndJobAndJobApplicationStatus(
             @Param("gigId") Long gigId,
-            @Param("jobId") Long jobId
+            @Param("jobId") Long jobId,
+            @Param("status") JobApplicationStatus status
     );
 
     @Query("SELECT ja FROM JobApplication as ja WHERE ja.job = :job AND (:status IS NULL OR ja.jobApplicationStatus = :status)")
@@ -52,17 +49,4 @@ public interface JobApplicationRepository extends JpaRepository<JobApplication, 
     List<Object[]> getApplicationGrowth(
             @Param("fromDate") LocalDateTime fromDate,
             @Param("toDate") LocalDateTime toDate);
-
-    @Query("""
-                SELECT ja
-                FROM JobApplication ja
-                WHERE ja.gig.id = :gigId AND ja.job.id = :jobId AND ja.jobApplicationStatus = :status
-                """)
-    Optional<JobApplication> findByGigAndJobAndJobApplicationStatus(
-            @Param("gigId") Long gigId,
-            @Param("jobId") Long jobId,
-            @Param("status") JobApplicationStatus status
-    );
-    
-    
 }

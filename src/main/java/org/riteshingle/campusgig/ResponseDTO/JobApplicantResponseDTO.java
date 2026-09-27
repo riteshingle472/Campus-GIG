@@ -14,6 +14,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @Builder
 public class JobApplicantResponseDTO {
+    private Long id;
     private String coverLetter;
     private String jobApplicationStatus;
     private BigDecimal bidAmount;

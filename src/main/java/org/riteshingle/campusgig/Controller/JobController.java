@@ -13,6 +13,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.data.domain.Page;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -25,7 +26,7 @@ public class JobController {
     private final JobService jobService;
     private final GigService gigService;
 
-//    Create Job ( ) -> Client
+//    Post Job
     @PreAuthorize("hasRole('CLIENT')")
     @PostMapping("/job")
     public ResponseEntity<?> createJob(@RequestBody JobRequestDTO dto) {
@@ -33,7 +34,7 @@ public class JobController {
         return ResponseEntity.status(HttpStatus.CREATED).build();
     }
 
-//    Get all jobs ( ) -> Client
+//    Jobs
     @PreAuthorize("hasRole('CLIENT') or hasRole('GIG') or hasRole('USER')")
     @GetMapping("/jobs")
     public ResponseEntity<List<JobResponseDTO>> getJobs(@RequestParam(defaultValue = "1", required = false) int pageNumber,
@@ -46,14 +47,14 @@ public class JobController {
         return ResponseEntity.ok(jobService.getJobs(pageable, min, max));
     }
 
-//    Get Job by ID
+//    Get Job
     @PreAuthorize("hasRole('CLIENT') or hasRole('GIG')")
     @GetMapping("/job/{id}")
     public ResponseEntity<JobResponseDTO> getJob(@PathVariable Long id) {
         return ResponseEntity.ok(jobService.getJob(id));
     }
 
-//    Draft Job ( ) -> Client
+//    Draft
     @PreAuthorize("hasRole('CLIENT')")
     @PostMapping("/draft")
     public ResponseEntity<?> draftJob(@RequestBody JobRequestDTO dto) {
@@ -61,14 +62,14 @@ public class JobController {
         return ResponseEntity.status(HttpStatus.CREATED).build();
     }
 
-//    Get Draft Job ( ) -> Client
+//    Get Draft
     @PreAuthorize("hasRole('CLIENT')")
     @GetMapping("/draft/{draftId}")
     public ResponseEntity<JobRequestDTO> getDraft(@PathVariable String draftId) {
         return ResponseEntity.ok(jobService.getDraft(draftId));
     }
 
-//    Soft delete ( ) -> Client
+//    Delete Job
     @PreAuthorize("hasRole('CLIENT')")
     @DeleteMapping("/job")
     public ResponseEntity<?> deleteJob(@RequestParam Long jobId) {
@@ -76,7 +77,7 @@ public class JobController {
         return ResponseEntity.noContent().build();
     }
 
-//    Permanent delete Draft ( ) -> Client
+//    Delete Draft
     @PreAuthorize("hasRole('CLIENT')")
     @DeleteMapping("/draft/{draftId}")
     public ResponseEntity<?> removeDraft(@PathVariable String draftId) {
@@ -84,14 +85,14 @@ public class JobController {
         return ResponseEntity.noContent().build();
     }
 
-//    Get all draft Job ( ) -> Client
+//    Drafts
     @PreAuthorize("hasRole('CLIENT')")
     @GetMapping("/drafts")
     public ResponseEntity<List<JobRequestDTO>> getAllDraftJob() {
         return ResponseEntity.of(Optional.ofNullable(jobService.getAllDraft()));
     }
 
-//    Edit published job ( ) -> Client
+//    Edit Job
     @PreAuthorize("hasRole('CLIENT')")
     @PatchMapping("/job/{id}")
     public ResponseEntity<?> editJob(@PathVariable Long id, @RequestBody JobRequestDTO dto) {
@@ -99,7 +100,7 @@ public class JobController {
         return ResponseEntity.noContent().build();
     }
 
-//    Edit Draft job ( ) -> Client
+//    Edit Draft
     @PreAuthorize("hasRole('CLIENT')")
     @PatchMapping("/draft")
     public ResponseEntity<?> updateJob(@RequestBody JobRequestDTO dto) {
@@ -107,7 +108,7 @@ public class JobController {
         return ResponseEntity.noContent().build();
     }
 
-//    All Job Applicants
+//    Job Applicants
     @PreAuthorize("hasRole('CLIENT')")
     @GetMapping("/applicants/{jobId}")
     public ResponseEntity<List<JobApplicantResponseDTO>> getAllJobApplicants(@PathVariable Long jobId,
@@ -120,7 +121,7 @@ public class JobController {
         return ResponseEntity.ok(jobService.getAllJobApplicants(jobId, pageable,keyword));
     }
 
-//    Clients Posted Jobs ( ) -> Client
+//    My Posted Job
     @PreAuthorize("hasRole('CLIENT')")
     @GetMapping("/my-jobs")
     public ResponseEntity<List<JobResponseDTO>> getJobsPostByMe(@RequestParam(required = false,defaultValue = "OPEN") String status, @RequestParam(required = false, defaultValue = "1") int page,
@@ -131,7 +132,7 @@ public class JobController {
         return ResponseEntity.ok(jobService.getAllJobsPostByMe(status, pageable));
     }
 
-//    Withdrawn Proposal By Job ID ( ) -> GIG
+//    Withdrawn Job Proposal By Job ID
     @PreAuthorize("hasRole('GIG')")
     @PatchMapping("/withdraw-proposal/{jobId}")
     public ResponseEntity<?> withdrawJobApplicationByJobId(@PathVariable Long jobId) {
@@ -139,7 +140,7 @@ public class JobController {
         return ResponseEntity.noContent().build();
     }
 
-//    Accept Proposal ( ) -> Client
+//    Accept Proposal
     @PreAuthorize("hasRole('CLIENT')")
     @PatchMapping("/accept-proposal")
     public ResponseEntity<?> acceptJobApplication(@RequestParam Long jobId, @RequestParam Long applicationId) {
@@ -147,7 +148,7 @@ public class JobController {
         return ResponseEntity.noContent().build();
     }
 
-//    Reject Proposal ( ) -> Client
+//    Reject Proposal
     @PreAuthorize("hasRole('CLIENT')")
     @PatchMapping("/reject-proposal")
     public ResponseEntity<?> rejectJobApplication(@RequestParam Long applicationId) {
@@ -155,8 +156,7 @@ public class JobController {
         return ResponseEntity.noContent().build();
     }
 
-    //    For -> Client
-    //    Shortlist a proposal
+//    Shortlist a proposal
     @PreAuthorize("hasRole('CLIENT')")
     @PatchMapping("/shortlist-proposal")
     public ResponseEntity<?> shortlistJobApplication(@RequestParam Long applicationId) {

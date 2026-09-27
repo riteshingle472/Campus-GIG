@@ -3,7 +3,7 @@ package org.riteshingle.campusgig.Controller;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.riteshingle.campusgig.RequestDTO.AdminAuthDTO;
-import org.riteshingle.campusgig.RequestDTO.AdminSendMailRequestDTO;
+//import org.riteshingle.campusgig.RequestDTO.AdminSendMailRequestDTO;
 import org.riteshingle.campusgig.ResponseDTO.*;
 import org.riteshingle.campusgig.Service.AdminService;
 import org.springframework.data.domain.PageRequest;
@@ -23,20 +23,20 @@ import java.util.Map;
 public class AdminController {
     private final AdminService adminService;
 
-//    Register Admin
+//    Admin Sign-up
     @PostMapping("/register")
     public ResponseEntity<?> register(@RequestBody AdminAuthDTO adminAuthDTO) {
         adminService.register(adminAuthDTO);
         return ResponseEntity.noContent().build();
     }
 
-//    Login Admin
-    @GetMapping("/login")
+//    Admin Login
+    @PostMapping("/login")
     public ResponseEntity<Map<String, String>> login(@RequestBody AdminAuthDTO adminAuthDTO, HttpServletResponse response) {
         return ResponseEntity.ok(adminService.login(adminAuthDTO, response));
     }
 
-//    Stats Card
+//    Stats
     @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/stats")
     public ResponseEntity<AdminDashboardCardStatsResponseDTO> stats(@RequestParam(required = false) LocalDate from,
@@ -64,7 +64,6 @@ public class AdminController {
         return ResponseEntity.ok(adminService.growthChart(from,to));
     }
 
-////    Admin Mail Service
 //    @PreAuthorize("hasRole('ADMIN')")
 //    @PostMapping("/mail")
 //    public ResponseEntity<?> sendMail(@RequestBody AdminSendMailRequestDTO requestDTO) {
@@ -72,7 +71,7 @@ public class AdminController {
 //        return ResponseEntity.noContent().build();
 //    }
 
-    //    GIGs API
+//    GIGs API
     @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/gigs")
     public ResponseEntity<List<AdminGigResponseDTO>> gigs(@RequestParam(required = false, defaultValue = "1") int pageNumber,
@@ -83,14 +82,14 @@ public class AdminController {
         return ResponseEntity.ok(adminService.gigs(pageable));
     }
 
-    //    GIG API
+//    GIG API
     @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/gig")
     public ResponseEntity<AdminGigResponseDTO> gig(@RequestParam Long id) {
         return ResponseEntity.ok(adminService.gig(id));
     }
 
-    //    Clients API
+//    Clients API
     @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/clients")
     public ResponseEntity<List<AdminUserAndClientResponseDTO>> clients(@RequestParam(required = false, defaultValue = "1") int pageNumber,
@@ -101,14 +100,14 @@ public class AdminController {
         return ResponseEntity.ok(adminService.clients(pageable));
     }
 
-    //    Client API
+//    Client API
     @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/client")
     public ResponseEntity<AdminUserAndClientResponseDTO> client(@RequestParam Long id) {
         return ResponseEntity.ok(adminService.client(id));
     }
 
-    //    job applications API
+//    job applications API
     @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/job-applications")
     public ResponseEntity<List<AdminJobApplicationListResponseDTO>> jobApplications(@RequestParam(required = false, defaultValue = "1") int pageNumber,
@@ -119,14 +118,14 @@ public class AdminController {
         return ResponseEntity.ok(adminService.jobApplications(pageable));
     }
 
-    //    Job application API
+//    Job application API
     @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/job-application")
     public ResponseEntity<AdminJobApplicationResponseDTO> jobApplication(@RequestParam Long id) {
         return ResponseEntity.ok(adminService.jobApplication(id));
     }
 
-    //    Jobs API
+//    Jobs API
     @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/jobs")
     public ResponseEntity<List<AdminJobResponseDTO>> jobs(@RequestParam(required = false, defaultValue = "1") int pageNumber,
@@ -137,21 +136,21 @@ public class AdminController {
         return ResponseEntity.ok(adminService.jobs(pageable));
     }
 
-    //    Job API
+//    Job API
     @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/job")
     public ResponseEntity<AdminJobResponseDTO> job(@RequestParam Long id) {
         return ResponseEntity.ok(adminService.job(id));
     }
 
-    //    Report API
+//    Report API
     @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/report")
-    public ResponseEntity<ReportResponseDTO> report(@RequestParam Long id) {
+    public ResponseEntity<AdminReportResponseDTO> report(@RequestParam Long id) {
         return ResponseEntity.ok(adminService.report(id));
     }
 
-    //    Reports API
+//    Reports API
     @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/reports")
     public ResponseEntity<List<AdminReportListResponseDTO>> reports(@RequestParam(required = false, defaultValue = "1") int pageNumber,

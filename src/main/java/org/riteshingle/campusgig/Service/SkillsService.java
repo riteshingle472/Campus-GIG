@@ -50,7 +50,6 @@ public class SkillsService {
         skillsRepository.save(skills);
     }
 //   helper methods
-
 //    Skill response DTO () ->
     private SkillResponseDTO skillResponseDTO(Skills skills){
         return SkillResponseDTO.builder()
