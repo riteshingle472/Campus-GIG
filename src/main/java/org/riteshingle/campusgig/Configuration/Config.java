@@ -56,7 +56,9 @@ public class Config {
                         // CORS preflight requests
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         // Public test endpoint
-                        .requestMatchers("/auth/test").permitAll()
+                        .requestMatchers("/api/auth/test").permitAll()
+                        // Technical Support (Issue)
+                        .requestMatchers("/api/technical-support/**").permitAll()
                         // WebSocket endpoints
                         .requestMatchers("/ws/**").permitAll()
                         // Admin authentication

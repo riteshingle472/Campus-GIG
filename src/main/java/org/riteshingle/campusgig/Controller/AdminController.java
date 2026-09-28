@@ -2,13 +2,15 @@ package org.riteshingle.campusgig.Controller;
 
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
-import org.riteshingle.campusgig.RequestDTO.AdminAuthDTO;
-//import org.riteshingle.campusgig.RequestDTO.AdminSendMailRequestDTO;
+import org.riteshingle.campusgig.AdminResponseDTO.*;
+import org.riteshingle.campusgig.AdminRequestDTO.AdminAuthDTO;
+//import org.riteshingle.campusgig.AdminRequestDTO.AdminSendMailRequestDTO;
 import org.riteshingle.campusgig.ResponseDTO.*;
 import org.riteshingle.campusgig.Service.AdminService;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -34,6 +36,12 @@ public class AdminController {
     @PostMapping("/login")
     public ResponseEntity<Map<String, String>> login(@RequestBody AdminAuthDTO adminAuthDTO, HttpServletResponse response) {
         return ResponseEntity.ok(adminService.login(adminAuthDTO, response));
+    }
+
+    @PatchMapping("/admin-access")
+    public ResponseEntity<Map<String, String>> adminAccess(@RequestParam Long id,@RequestParam String status) {
+        adminService.adminAccess(status,id);
+        return ResponseEntity.status(HttpStatus.CREATED).build();
     }
 
 //    Stats
@@ -160,4 +168,30 @@ public class AdminController {
         Pageable pageable = PageRequest.of(pageNumber - 1, pageSize, Sort.Direction.fromString(direction), field);
         return ResponseEntity.ok(adminService.reports(pageable));
     }
+
+    //    Technical Issue API
+    @PreAuthorize("hasRole('ADMIN')")
+    @GetMapping("/technical-support")
+    public ResponseEntity<AdminTechnicalSupportResponseDTO> technicalIssue(@RequestParam Long id) {
+        return ResponseEntity.ok(adminService.technicalSupport(id));
+    }
+
+    //    Technical Issues API
+    @PreAuthorize("hasRole('ADMIN')")
+    @GetMapping("/technical-supports")
+    public ResponseEntity<List<AdminTechnicalSupportResponseDTO>> technicalIssues(@RequestParam(required = false, defaultValue = "1") int pageNumber,
+                                                                    @RequestParam(required = false, defaultValue = "10") int pageSize,
+                                                                    @RequestParam(required = false, defaultValue = "ASC") String direction,
+                                                                    @RequestParam(required = false, defaultValue = "createdAt") String field) {
+        Pageable pageable = PageRequest.of(pageNumber - 1, pageSize, Sort.Direction.fromString(direction), field);
+        return ResponseEntity.ok(adminService.technicalSupports(pageable));
+    }
+
+    @PreAuthorize("hasRole('ADMIN')")
+    @PatchMapping("/technical-support")
+    public ResponseEntity<AdminTechnicalSupportResponseDTO> updateTechnicalIssue(@RequestParam Long id,@RequestParam String status) {
+        adminService.updateTechnicalIssue(id,status);
+        return ResponseEntity.status(HttpStatus.CREATED).build();
+    }
+
 }

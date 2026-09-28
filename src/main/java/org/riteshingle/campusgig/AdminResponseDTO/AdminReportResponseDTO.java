@@ -1,4 +1,4 @@
-package org.riteshingle.campusgig.ResponseDTO;
+package org.riteshingle.campusgig.AdminResponseDTO;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -7,7 +7,6 @@ import lombok.NoArgsConstructor;
 import org.riteshingle.campusgig.Enum.ActionInitiatedBy;
 
 import java.time.LocalDateTime;
-import java.util.List;
 
 @Data
 @Builder

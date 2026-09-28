@@ -1,4 +1,4 @@
-package org.riteshingle.campusgig.ResponseDTO;
+package org.riteshingle.campusgig.AdminResponseDTO;
 
 import lombok.Builder;
 import lombok.Data;
@@ -13,4 +13,5 @@ public class AdminDashboardCardStatsResponseDTO {
     private Long totalJobApplication;
     private Long totalContract;
     private Long totalReport;
+    private Long totalTechnicalIssue;
 }

@@ -9,6 +9,8 @@ import org.riteshingle.campusgig.Repository.NotificationRepository;
 import org.riteshingle.campusgig.ResponseDTO.NotificationResponseDTO;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.mail.SimpleMailMessage;
+import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,6 +22,22 @@ public class NotificationService {
     private final NotificationRepository notificationRepository;
     private final SimpMessagingTemplate messagingTemplate;
     private final AuthService authService;
+    private final JavaMailSender javaMailSender;
+
+    public void sendMail(String to , String subject ,String body){
+        SimpleMailMessage javaMail =  new SimpleMailMessage();
+
+        try {
+            javaMail.setTo(to);
+            javaMail.setSubject(subject);
+            javaMail.setText(body);
+
+            javaMailSender.send(javaMail);
+        }catch (Exception e){
+            e.printStackTrace(); // ya logger.error("Mail error: ", e);
+            throw new RuntimeException("Mail sending failed: " + e.getMessage(), e);
+        }
+    }
 
     /**
      * Core entry point — every other service calls this to notify a user.

@@ -1,7 +1,9 @@
 package org.riteshingle.campusgig.Service;
 
+import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import org.riteshingle.campusgig.AdminResponseDTO.*;
 import org.riteshingle.campusgig.Enum.*;
 import org.riteshingle.campusgig.Exception.BadRequestException;
 import org.riteshingle.campusgig.Exception.ConflictException;
@@ -11,15 +13,16 @@ import org.riteshingle.campusgig.Exception.UnauthorizedException;
 import org.riteshingle.campusgig.JwtUtils.JwtUtils;
 import org.riteshingle.campusgig.Model.*;
 import org.riteshingle.campusgig.Repository.*;
-import org.riteshingle.campusgig.RequestDTO.AdminAuthDTO;
-import org.riteshingle.campusgig.RequestDTO.AdminSendMailRequestDTO;
+import org.riteshingle.campusgig.AdminRequestDTO.AdminAuthDTO;
 import org.riteshingle.campusgig.ResponseDTO.*;
-import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -35,20 +38,24 @@ import java.util.*;
 @RequiredArgsConstructor
 @Transactional
 public class AdminService {
-    private final UserEntityRepository userEntityRepository;
+    private final JwtUtils jwtUtils;
     private final GigRepository gigRepository;
     private final JobRepository jobRepository;
-    private final JobApplicationRepository jobApplicationRepository;
-    private final ContractRepository contractRepository;
-    private final ReportRepository reportRepository;
-    private final UserSkillsRepository userSkillsRepository;
-    private final NotificationService notificationService;
     private final PasswordEncoder passwordEncoder;
-    private final JwtUtils jwtUtils;
-    private final AdminRefreshTokenRepository adminRefreshTokenRepository;
     private final AdminRepository adminRepository;
+    private final ReportRepository reportRepository;
+    private final ContractRepository contractRepository;
+    private final UserEntityRepository userEntityRepository;
+    private final UserSkillsRepository userSkillsRepository;
+    private final JobApplicationRepository jobApplicationRepository;
+    private final TechnicalSupportRepository technicalSupportRepository;
+    private final AdminRefreshTokenRepository adminRefreshTokenRepository;
+
+    @Resource(name = "adminAuthenticationManager")
     private final AuthenticationManager adminAuthenticationManager;
 
+    @Value("${main.admin.email}")
+    private String mainAdminEmail;
 
 //    Register Admin
     public void register(AdminAuthDTO dto)  {
@@ -83,18 +90,19 @@ public class AdminService {
         Date ACCESS_TOKEN_EXPIRY = new Date(System.currentTimeMillis() + (7 * 24 * 60 * 60 * 1000));
 
 //        Get Admin By email
-        Admin admin = adminRepository.findByEmail(dto.getEmail())
-                .orElseThrow(() -> new UnauthorizedException("Invalid email or password"));
+        Admin admin = adminRepository.findByEmail(dto.getEmail()).orElseThrow(() -> new UnauthorizedException("Invalid email or password"));
+
+        if (admin.getAdminAccessStatus() == AdminAccessStatus.PENDING)
+            throw new UnauthorizedException("Your admin access is pending approval");
+
+        if (admin.getAdminAccessStatus() == AdminAccessStatus.DENIED)
+            throw new UnauthorizedException("Your admin access has been denied");
 
 //        Authentication Manager for matching password
-        adminAuthenticationManager.authenticate(new UsernamePasswordAuthenticationToken(dto.getEmail(),dto.getPassword()));
-
-        //   NEW: enforce access approval status — PENDING/DENIAL admins can't log in
-        if (admin.getAdminAccessStatus() == AdminAccessStatus.PENDING) {
-            throw new UnauthorizedException("Your admin access is still pending approval");
-        }
-        if (admin.getAdminAccessStatus() == AdminAccessStatus.DENIAL) {
-            throw new UnauthorizedException("Your admin access request was denied");
+        try {adminAuthenticationManager.authenticate(new UsernamePasswordAuthenticationToken(dto.getEmail(),dto.getPassword()));}
+        catch (Exception e) {
+            e.printStackTrace();
+            throw e;
         }
 
 //        Check admin refresh token in DB by Admin
@@ -143,10 +151,36 @@ public class AdminService {
         return Map.of("Access Token", accessToken);
     }
 
+    public Admin getCurrentAdmin() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        return adminRepository.findByEmailWithRoles(authentication.getName())
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+    }
+
+//    Approve Admin
+    public void adminAccess(String status,Long id){
+        Admin currentAdmin = getCurrentAdmin();
+
+        if(!currentAdmin.getEmail().equals(mainAdminEmail))
+            throw new UnauthorizedException("You don't have permission to that..");
+
+        Admin admin = adminRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Admin not found by Id : " + id));
+
+        AdminAccessStatus adminAccessStatus;
+        try {adminAccessStatus = AdminAccessStatus.valueOf(status.trim().toUpperCase());}
+        catch (InvalidStatusException exception){throw new InvalidStatusException("Invalid Admin Status : "+status.trim().toUpperCase());}
+
+        if(adminAccessStatus == AdminAccessStatus.PENDING)
+            throw new BadRequestException("Invalid Status Selection : "+adminAccessStatus);
+
+        admin.setAdminAccessStatus(adminAccessStatus);
+        adminRepository.save(admin);
+    }
+
 //    Dashboard Stats
     public AdminDashboardCardStatsResponseDTO dashboardCardStats(LocalDate from, LocalDate to,
                                                                  String jobApplicationStatus,
-                                                                 String jobStatus,String contractStatus,
+                                                                 String jobStatus, String contractStatus,
                                                                  String reportStatus) {
 
 //        From date cannot be after to date
@@ -203,15 +237,17 @@ public class AdminService {
         Long totalOpenJob = jobRepository.findTotalJobByStatus(status, startFrom, endTo);
         Long totalContract = contractRepository.findTotalContractByStatus(cs, startFrom, endTo);
         Long totalReport = reportRepository.findTotalReportByStatus(adminReportStatus, startFrom, endTo);
+        Long totalTechnicalIssue = technicalSupportRepository.findTotalTechnicalIssues(startFrom,endTo);
 
         return AdminDashboardCardStatsResponseDTO.builder()
-                .totalJob(totalOpenJob)
                 .totalGIG(totalGIG)
+                .totalUser(totalUSER)
+                .totalJob(totalOpenJob)
                 .totalReport(totalReport)
                 .totalClient(totalClient)
                 .totalContract(totalContract)
+                .totalTechnicalIssue(totalTechnicalIssue)
                 .totalJobApplication(totalJobApplication)
-                .totalUser(totalUSER)
                 .build();
     }
 
@@ -396,6 +432,34 @@ public class AdminService {
         return reportResponseDTO(report);
     }
 
+//    Get Technical Issue by ID
+    public AdminTechnicalSupportResponseDTO technicalSupport(Long id){
+        TechnicalSupport technicalSupport = technicalSupportRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Technical Issue not found.."));
+        return technicalSupportResponse(technicalSupport);
+    }
+
+//    Get Technical Issues
+    public List<AdminTechnicalSupportResponseDTO> technicalSupports(Pageable pageable){
+        List<TechnicalSupport> content = technicalSupportRepository.findAll(pageable).getContent();
+        return content.stream().map(this::technicalSupportResponse).toList();
+    }
+
+    public void updateTechnicalIssue(Long id ,String status){
+//        Fetch Technical Support by ID
+        TechnicalSupport technicalSupport = technicalSupportRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Technical Support not found ..."));
+
+//        Validate Support Status
+        TechnicalSupportStatus supportStatus;
+        try {supportStatus = TechnicalSupportStatus.valueOf(status.trim().toUpperCase());}
+        catch (InvalidStatusException exception){throw new InvalidStatusException("Status is not Valid..."+status);}
+
+//        status transition validation
+        validateTechnicalSupportStatus(supportStatus,technicalSupport.getStatus());
+//        save changes in DB
+        technicalSupport.setStatus(supportStatus);
+        technicalSupportRepository.save(technicalSupport);
+    }
+
     //    Helper methods (unchanged)
     private AdminGigResponseDTO adminGigResponseDTO(GIG gig) {
         AdminUserAndClientResponseDTO owner = userAndClientResponseDTO(gig.getUser());
@@ -498,5 +562,30 @@ public class AdminService {
                 .status(jobApplication.getJobApplicationStatus().name())
                 .id(jobApplication.getId())
                 .build();
+    }
+    private AdminTechnicalSupportResponseDTO technicalSupportResponse(TechnicalSupport technicalSupport){
+        AdminUserAndClientResponseDTO adminUserAndClientResponseDTO = userAndClientResponseDTO(technicalSupport.getReporter());
+        return AdminTechnicalSupportResponseDTO.builder()
+                .id(technicalSupport.getId())
+                .userResponseDTO(adminUserAndClientResponseDTO)
+                .status(technicalSupport.getStatus())
+                .subject(technicalSupport.getSubject())
+                .description(technicalSupport.getDescription())
+                .createdAt(technicalSupport.getCreatedAt())
+                .build();
+    }
+
+    private void validateTechnicalSupportStatus(TechnicalSupportStatus newStatus ,TechnicalSupportStatus currentStatus){
+        if(currentStatus.equals(TechnicalSupportStatus.PENDING) && !newStatus.equals(TechnicalSupportStatus.OPEN))
+            throw new BadRequestException("Pending issue can only be changed to OPEN");
+
+        if(currentStatus.equals(TechnicalSupportStatus.OPEN) && !newStatus.equals(TechnicalSupportStatus.IN_PROGRESS))
+            throw new BadRequestException("Open issue can only be changed to IN_PROGRESS");
+
+        if(currentStatus.equals(TechnicalSupportStatus.IN_PROGRESS) && !newStatus.equals(TechnicalSupportStatus.RESOLVED))
+            throw new BadRequestException("In-progress issue can only be changed to RESOLVED");
+
+        if (currentStatus == TechnicalSupportStatus.CLOSED)
+            throw new BadRequestException("Closed issue cannot be changed");
     }
 }

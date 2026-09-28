@@ -1,4 +1,4 @@
-package org.riteshingle.campusgig.RequestDTO;
+package org.riteshingle.campusgig.AdminRequestDTO;
 
 import lombok.Data;
 

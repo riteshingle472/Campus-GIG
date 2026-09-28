@@ -1,11 +1,10 @@
-package org.riteshingle.campusgig.ResponseDTO;
+package org.riteshingle.campusgig.AdminResponseDTO;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.riteshingle.campusgig.Enum.AvailabilityStatus;
-import org.springframework.data.domain.PageRequest;
 
 import java.time.LocalDateTime;
 

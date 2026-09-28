@@ -1,7 +1,5 @@
-package org.riteshingle.campusgig.ResponseDTO;
+package org.riteshingle.campusgig.AdminResponseDTO;
 
-import jakarta.persistence.*;
-import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -12,7 +10,6 @@ import org.riteshingle.campusgig.Enum.ProgressStatus;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.List;
 
 @Data
 @Builder

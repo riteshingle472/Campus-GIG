@@ -1,4 +1,4 @@
-package org.riteshingle.campusgig.ResponseDTO;
+package org.riteshingle.campusgig.AdminResponseDTO;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
