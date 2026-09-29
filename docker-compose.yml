@@ -58,8 +58,13 @@ services:
 
       DB_URL: "jdbc:mysql://mysqldb:3306/campus_gig?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true"
       DB_DRIVER: "com.mysql.cj.jdbc.Driver"
-      DB_USER: "${DB_USERNAME:-root}"
+      DB_USERNAME: "${DB_USERNAME:-root}"
       DB_PASSWORD: "${DB_PASSWORD:-root}"
+
+      MAIL_USERNAME: "${MAIL_USERNAME}"
+      MAIL_PASSWORD: "${MAIL_PASSWORD}"
+      MAIN_ADMIN_EMAIL: "${MAIN_ADMIN_EMAIL}"
+
     depends_on:
       mysqldb:
         condition: service_healthy

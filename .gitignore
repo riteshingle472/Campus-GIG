@@ -34,3 +34,4 @@ build/
 
 ## Git ##
 mysql-data/
+.env

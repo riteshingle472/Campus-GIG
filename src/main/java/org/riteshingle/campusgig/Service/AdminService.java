@@ -80,6 +80,10 @@ public class AdminService {
                 .adminAccessStatus(AdminAccessStatus.PENDING)
                 .build();
 
+        if(mainAdminEmail.equals(admin.getEmail())){
+            admin.setAdminAccessStatus(AdminAccessStatus.ALLOWED);
+        }
+
         adminRepository.save(admin);
     }
 
@@ -165,6 +169,9 @@ public class AdminService {
             throw new UnauthorizedException("You don't have permission to that..");
 
         Admin admin = adminRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Admin not found by Id : " + id));
+
+        if(currentAdmin.getId().equals(admin.getId()))
+            throw new BadRequestException("You can't perform this action on yourself");
 
         AdminAccessStatus adminAccessStatus;
         try {adminAccessStatus = AdminAccessStatus.valueOf(status.trim().toUpperCase());}
