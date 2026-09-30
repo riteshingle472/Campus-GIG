@@ -84,6 +84,22 @@ public class NotificationService {
         UserEntity currentProfile = authService.getCurrentProfile();
         return notificationRepository.countByRecipientAndIsReadFalse(currentProfile);
     }
+   //new
+    public void markAsRead(Long id) {
+
+        UserEntity currentProfile = authService.getCurrentProfile();
+
+        int updated = notificationRepository.markAsRead(
+                id,
+                currentProfile
+        );
+
+        if (updated == 0) {
+            throw new ResourceNotFoundException(
+                    "Notification not found"
+            );
+        }
+    }
 
 //    Mark Read
     public void markAllAsRead() {
