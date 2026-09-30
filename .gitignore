@@ -35,3 +35,4 @@ build/
 ## Git ##
 mysql-data/
 .env
+mysql-data-backup/
