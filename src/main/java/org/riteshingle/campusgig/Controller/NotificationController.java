@@ -35,6 +35,16 @@ public class NotificationController {
         return ResponseEntity.ok(Map.of("count", notificationService.getUnreadCount()));
     }
 
+    //Mark single Notification Read -new
+    @PreAuthorize("hasRole('CLIENT') or hasRole('GIG')")
+    @PatchMapping("/{id}/read")
+    public ResponseEntity<?> markAsRead(@PathVariable Long id) {
+
+        notificationService.markAsRead(id);
+
+        return ResponseEntity.noContent().build();
+    }
+
 //    Mark read all notification
     @PreAuthorize("hasRole('CLIENT') or hasRole('GIG')")
     @PatchMapping("/mark-all-read")
