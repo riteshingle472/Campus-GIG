@@ -91,10 +91,8 @@ public class ReportService {
                     .reportReason(report.getReportReason().name())
                     .reportStatus(report.getReportStatus().name())
                     .description(report.getDescription())
-                    .adminRemark(report.getAdminRemark())
                     .filedByMe(filedByMe)
                     .createdAt(report.getCreatedAt())
-                    .resolveAt(report.getResolveAt())
                     .build();
         }).toList();
     }

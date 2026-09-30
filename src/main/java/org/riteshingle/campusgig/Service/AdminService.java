@@ -5,11 +5,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.riteshingle.campusgig.AdminResponseDTO.*;
 import org.riteshingle.campusgig.Enum.*;
-import org.riteshingle.campusgig.Exception.BadRequestException;
-import org.riteshingle.campusgig.Exception.ConflictException;
-import org.riteshingle.campusgig.Exception.InvalidStatusException;
-import org.riteshingle.campusgig.Exception.ResourceNotFoundException;
-import org.riteshingle.campusgig.Exception.UnauthorizedException;
+import org.riteshingle.campusgig.Exception.*;
 import org.riteshingle.campusgig.JwtUtils.JwtUtils;
 import org.riteshingle.campusgig.Model.*;
 import org.riteshingle.campusgig.Repository.*;
@@ -161,25 +157,54 @@ public class AdminService {
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
     }
 
-//    Approve Admin
-    public void adminAccess(String status,Long id){
+//    Admins
+    public List<AdminResponseDTO> admins(Pageable pageable,String keyword){
+//        Get current logged-in Admin
         Admin currentAdmin = getCurrentAdmin();
 
+//        Only admin can see  all admins
+        if(!currentAdmin.getEmail().equals(mainAdminEmail))
+            throw new ForbiddenException("You don't have permission to view Admins");
+
+//        Validate Admin
+        AdminAccessStatus adminAccessStatus = null;
+
+        if(keyword != null){
+            try {adminAccessStatus = AdminAccessStatus.valueOf(keyword.trim().toUpperCase());}
+            catch(InvalidStatusException exception){ throw new InvalidStatusException("Invalid status : "+keyword.trim().toUpperCase());}
+        }
+//        Fetch all admin by keyword (ALLOWED,PENDING,DENIED)
+        List<Admin> admins = adminRepository.findAdminByKeywords(adminAccessStatus, pageable);
+//        convert and return Admin list into AdminResponseDTO list
+        return admins.stream().map(this::adminResponseDTO).toList();
+    }
+
+//    Approve Admin
+    public void adminAccess(String status,Long id){
+//        Get current logged-in Admin
+        Admin currentAdmin = getCurrentAdmin();
+
+//        Only Main admin can give permission to other admin to logg-in
         if(!currentAdmin.getEmail().equals(mainAdminEmail))
             throw new UnauthorizedException("You don't have permission to that..");
 
+//        Fetch admin by id
         Admin admin = adminRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Admin not found by Id : " + id));
 
+//        Main admin can't set access status on own
         if(currentAdmin.getId().equals(admin.getId()))
             throw new BadRequestException("You can't perform this action on yourself");
 
+//        Validate admin access status
         AdminAccessStatus adminAccessStatus;
         try {adminAccessStatus = AdminAccessStatus.valueOf(status.trim().toUpperCase());}
         catch (InvalidStatusException exception){throw new InvalidStatusException("Invalid Admin Status : "+status.trim().toUpperCase());}
 
+//        Admin can't set status to pending
         if(adminAccessStatus == AdminAccessStatus.PENDING)
             throw new BadRequestException("Invalid Status Selection : "+adminAccessStatus);
 
+//        set and save changes
         admin.setAdminAccessStatus(adminAccessStatus);
         adminRepository.save(admin);
     }
@@ -439,6 +464,38 @@ public class AdminService {
         return reportResponseDTO(report);
     }
 
+//    Update Report
+    public void updateReport(String status,Long id){
+//        Fetch report by ID
+        Report report = reportRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Report not found by ID : "+id));
+
+//        Validate report status
+        ReportStatus reportStatus;
+        try {reportStatus = ReportStatus.valueOf(status.trim().toUpperCase());}
+        catch (InvalidStatusException exception){throw new InvalidStatusException("Invalid status selection : "+status.trim().toUpperCase());}
+
+//        Validate Report
+        validateReportStatusUpdate(report.getReportStatus(),reportStatus);
+
+//        set and save changes
+        report.setReportStatus(reportStatus);
+        reportRepository.save(report);
+    }
+
+    private void validateReportStatusUpdate(
+            ReportStatus currentStatus,
+            ReportStatus newStatus) {
+
+        if (currentStatus == ReportStatus.RESOLVED || currentStatus == ReportStatus.REJECTED)
+            throw new BadRequestException("Report status cannot be updated once it is resolved or rejected");
+
+        if (currentStatus == newStatus)
+            throw new BadRequestException("Report is already in " + currentStatus);
+
+        if (currentStatus == ReportStatus.PENDING && newStatus != ReportStatus.UNDER_REVIEW)
+            throw new BadRequestException("Pending report must first be moved to UNDER_REVIEW");
+    }
+
 //    Get Technical Issue by ID
     public AdminTechnicalSupportResponseDTO technicalSupport(Long id){
         TechnicalSupport technicalSupport = technicalSupportRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Technical Issue not found.."));
@@ -532,12 +589,10 @@ public class AdminService {
     private AdminReportResponseDTO reportResponseDTO(Report report) {
         return AdminReportResponseDTO.builder()
                 .reportStatus(report.getReportStatus().name())
-                .adminRemark(report.getAdminRemark() == null ? null : report.getAdminRemark())
                 .description(report.getDescription())
                 .reason(report.getReportReason().name())
                 .actionInitiatedBy(report.getActionInitiatedBy())
                 .createdAt(report.getCreatedAt())
-                .resolvedAt(report.getResolveAt() == null ? null : report.getResolveAt())
                 .contractResponseDTO(contractResponseDTO(report.getContract()))
                 .build();
     }
@@ -594,5 +649,17 @@ public class AdminService {
 
         if (currentStatus == TechnicalSupportStatus.CLOSED)
             throw new BadRequestException("Closed issue cannot be changed");
+    }
+
+    private AdminResponseDTO adminResponseDTO(Admin admin){
+        return AdminResponseDTO.builder()
+                .id(admin.getId())
+                .accessStatus(admin.getAdminAccessStatus())
+                .contactNumber(admin.getContactNo())
+                .fullName(admin.getFullName())
+                .email(admin.getEmail())
+                .status(admin.getAdminStatus())
+                .createdAt(admin.getCreatedAt())
+                .build();
     }
 }

@@ -2,6 +2,7 @@ package org.riteshingle.campusgig.Service;
 
 import lombok.RequiredArgsConstructor;
 import org.riteshingle.campusgig.Enum.NotificationType;
+import org.riteshingle.campusgig.Exception.ForbiddenException;
 import org.riteshingle.campusgig.Exception.ResourceNotFoundException;
 import org.riteshingle.campusgig.Model.Notification;
 import org.riteshingle.campusgig.Model.UserEntity;
@@ -55,7 +56,7 @@ public class NotificationService {
                 .isRead(false)
                 .build();
 
-//        Savve in DB
+//        Save in DB
         notification = notificationRepository.save(notification);
 
 //        Convert Notification into DTO
@@ -84,21 +85,16 @@ public class NotificationService {
         UserEntity currentProfile = authService.getCurrentProfile();
         return notificationRepository.countByRecipientAndIsReadFalse(currentProfile);
     }
-   //new
+
+//    new
     public void markAsRead(Long id) {
-
         UserEntity currentProfile = authService.getCurrentProfile();
+        Notification notification = notificationRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Notification not found ..."));
 
-        int updated = notificationRepository.markAsRead(
-                id,
-                currentProfile
-        );
+        if(!notification.getRecipient().getId().equals(currentProfile.getId()))
+            throw new ForbiddenException("You don't have permission to see others notifications..");
 
-        if (updated == 0) {
-            throw new ResourceNotFoundException(
-                    "Notification not found"
-            );
-        }
+        notificationRepository.markAsRead(id,currentProfile);
     }
 
 //    Mark Read

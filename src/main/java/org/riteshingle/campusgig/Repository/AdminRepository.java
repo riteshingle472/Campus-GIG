@@ -1,13 +1,16 @@
 package org.riteshingle.campusgig.Repository;
 
 import lombok.Data;
+import org.riteshingle.campusgig.Enum.AdminAccessStatus;
 import org.riteshingle.campusgig.Model.Admin;
 import org.riteshingle.campusgig.Model.UserEntity;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -22,4 +25,6 @@ public interface AdminRepository extends JpaRepository<Admin,Long> {
         """)
     Optional<Admin> findByEmailWithRoles(@Param("email") String email);
 
+    @Query("select a from Admin a where (:keyword IS NULL OR a.adminAccessStatus = :keyword)")
+    List<Admin> findAdminByKeywords(@Param("keyword") AdminAccessStatus adminAccessStatus, Pageable pageable);
 }

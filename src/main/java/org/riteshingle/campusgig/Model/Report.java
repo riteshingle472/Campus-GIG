@@ -59,9 +59,6 @@ public class Report {
     @Enumerated(EnumType.STRING)
     private ActionInitiatedBy actionInitiatedBy;
 
-    @Size(min = 10,max = 1000,message = "Admin must be between 10 to 1000 characters..")
-    private String adminRemark;
-
     @CreationTimestamp
     @Column(nullable = false,updatable = false)
     private LocalDateTime createdAt;
@@ -69,7 +66,4 @@ public class Report {
     @UpdateTimestamp
     @Column(nullable = false)
     private LocalDateTime updatedAt;
-
-    private LocalDateTime resolveAt;
-
 }

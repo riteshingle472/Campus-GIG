@@ -38,6 +38,17 @@ public class AdminController {
         return ResponseEntity.ok(adminService.login(adminAuthDTO, response));
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
+    @GetMapping("/admins")
+    public ResponseEntity<List<AdminResponseDTO>> admins(@RequestParam(required = false,defaultValue = "1") int page,
+                                                         @RequestParam(required = false,defaultValue = "10") int size,
+                                                         @RequestParam(required = false,defaultValue = "ASC") String direction,
+                                                         @RequestParam(required = false,defaultValue = "createdAt") String field,
+                                                         @RequestParam(required = false) String keyword){
+        Pageable pageable = PageRequest.of(page-1,size,Sort.Direction.fromString(direction),field);
+        return ResponseEntity.ok(adminService.admins(pageable,keyword));
+    }
+
     @PatchMapping("/admin-access")
     public ResponseEntity<Map<String, String>> adminAccess(@RequestParam Long id,@RequestParam String status) {
         adminService.adminAccess(status,id);
@@ -167,6 +178,13 @@ public class AdminController {
                                                                     @RequestParam(required = false, defaultValue = "createdAt") String field) {
         Pageable pageable = PageRequest.of(pageNumber - 1, pageSize, Sort.Direction.fromString(direction), field);
         return ResponseEntity.ok(adminService.reports(pageable));
+    }
+
+    @PreAuthorize("hasRole('ADMIN')")
+    @PatchMapping("/{id}/update-report")
+    public ResponseEntity<?> updateReport(@RequestParam String status,@PathVariable Long id){
+        adminService.updateReport(status,id);
+        return ResponseEntity.noContent().build();
     }
 
     //    Technical Issue API
