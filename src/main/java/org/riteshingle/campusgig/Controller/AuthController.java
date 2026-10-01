@@ -46,6 +46,12 @@ public class AuthController {
         return ResponseEntity.ok(authService.verifyEmail(otp));
     }
 
+    @PatchMapping("/reset-password")
+    public ResponseEntity<?> resetPassword(@RequestBody ResetPasswordRequestDTO dto) {
+        authService.resetPassword(dto);
+        return ResponseEntity.noContent().build();
+    }
+
 //    Forgot Password OTP API
     @GetMapping("/forgot-password")
     public ResponseEntity<String> forgotPasswordOTP(@RequestParam String email) {

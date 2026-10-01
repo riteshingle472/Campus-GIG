@@ -3,6 +3,7 @@ package org.riteshingle.campusgig.Service;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.riteshingle.campusgig.Enum.Roles;
+import org.riteshingle.campusgig.Exception.BadRequestException;
 import org.riteshingle.campusgig.Exception.ConflictException;
 import org.riteshingle.campusgig.Exception.ResourceNotFoundException;
 import org.riteshingle.campusgig.Exception.UnauthorizedException;
@@ -150,6 +151,20 @@ public class AuthService {
         UserEntity currentProfile = getCurrentProfile();
 //        Convert current profile into DTO
         return toResponse(currentProfile);
+    }
+
+//    Reset Password
+    public void resetPassword(ResetPasswordRequestDTO dto){
+//        Get Current Logged-in Profile
+        UserEntity currentProfile = this.getCurrentProfile();
+//        Match Old password
+        if(!passwordEncoder.matches(dto.getOldPassword(),currentProfile.getPassword()))
+            throw new BadRequestException("Old password is incorrect");
+
+//        Match new and Confirm password
+        if(dto.getNewPassword().equals(dto.getConfirmPassword()))
+            currentProfile.setPassword(passwordEncoder.encode(dto.getNewPassword()));
+        else throw new BadRequestException("Incorrect password..");
     }
 
 //    Email verification OTP — unchanged (relies on being logged in — confirmed intentional flow)
