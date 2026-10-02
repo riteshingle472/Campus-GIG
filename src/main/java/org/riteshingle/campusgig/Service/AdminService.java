@@ -35,6 +35,7 @@ import java.util.*;
 @Transactional
 public class AdminService {
     private final JwtUtils jwtUtils;
+    private final EmailService emailService;
     private final GigRepository gigRepository;
     private final JobRepository jobRepository;
     private final PasswordEncoder passwordEncoder;
@@ -521,6 +522,31 @@ public class AdminService {
         validateTechnicalSupportStatus(supportStatus,technicalSupport.getStatus());
 //        save changes in DB
         technicalSupport.setStatus(supportStatus);
+
+        UserEntity reporter = technicalSupport.getReporter();
+
+        if(supportStatus.equals(TechnicalSupportStatus.RESOLVED)){
+            String subject = "Technical Issue Resolved – Campus GIG";
+            String body = "Hello, "+reporter.getFirstName()+"\n" +
+                    "\n" +
+                    "Your technical issue has been successfully resolved.\n" +
+                    "\n" +
+                    "You can now use the Campus GIG web application freely. If you face any other issue, please feel free to contact our support team.\n" +
+                    "\n" +
+                    "Thank you for your patience.\n" +
+                    "\n" +
+                    "Best Regards,\n" +
+                    "Campus GIG Support Team\n" +
+                    "\n" +
+                    "━━━━━━━━━━━━━━━━━━━━\n" +
+                    "**CAMPUS GIG**\n" +
+                    "*Empowering Students. Connecting Opportunities.*\n" +
+                    "━━━━━━━━━━━━━━━━━━━━\n" +
+                    "\n" +
+                    "This is an automated email. Please do not reply directly to this email.\n";
+
+            emailService.sendMail(reporter.getEmail(),subject,body);
+        }
         technicalSupportRepository.save(technicalSupport);
     }
 

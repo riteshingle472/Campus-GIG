@@ -37,7 +37,8 @@ public class AuthController {
 //    Email verification OTP API
     @GetMapping("/verification")
     public ResponseEntity<String> verifyEmailOTP() {
-        return ResponseEntity.ok(authService.verifyEmailOTP());
+        authService.verifyEmailOTP();
+        return ResponseEntity.noContent().build();
     }
 
 //    Email Verification API
@@ -54,8 +55,9 @@ public class AuthController {
 
 //    Forgot Password OTP API
     @GetMapping("/forgot-password")
-    public ResponseEntity<String> forgotPasswordOTP(@RequestParam String email) {
-        return ResponseEntity.ok(authService.forgotPasswordOTP(email));
+    public ResponseEntity<?> forgotPasswordOTP(@RequestParam String email) {
+        authService.forgotPasswordOTP(email);
+        return ResponseEntity.noContent().build();
     }
 
 //    Forgot/Change Password API

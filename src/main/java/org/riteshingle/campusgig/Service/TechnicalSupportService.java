@@ -5,7 +5,6 @@ import org.riteshingle.campusgig.Enum.TechnicalSupportStatus;
 import org.riteshingle.campusgig.Exception.EmailSendingException;
 import org.riteshingle.campusgig.Exception.ForbiddenException;
 import org.riteshingle.campusgig.Exception.ResourceNotFoundException;
-import org.riteshingle.campusgig.Model.GIG;
 import org.riteshingle.campusgig.Model.TechnicalSupport;
 import org.riteshingle.campusgig.Model.UserEntity;
 import org.riteshingle.campusgig.Repository.TechnicalSupportRepository;
@@ -21,7 +20,7 @@ import java.util.List;
 @RequiredArgsConstructor
 @Transactional
 public class TechnicalSupportService {
-    private final NotificationService notificationService;
+    private final EmailService emailService;
     private final AuthService authService;
     private final TechnicalSupportRepository technicalSupportRepository;
 
@@ -49,7 +48,7 @@ public class TechnicalSupportService {
                 "Campus GIG Team";
 
         try {
-//            notificationService.sendMail(currentProfile.getEmail(),subject,body);
+            emailService.sendMail(currentProfile.getEmail(),subject,body);
         }catch (Exception e){
             throw  new EmailSendingException("Failed to send technical support confirmation email"+ e);
         }
