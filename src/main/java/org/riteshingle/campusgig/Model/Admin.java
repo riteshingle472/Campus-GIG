@@ -27,7 +27,7 @@ public class Admin {
     @NotBlank(message = "Email is required..")
     private String email;
 
-    @Column(nullable = false,updatable = false)
+    @Column(nullable = false)
     @NotBlank(message = "Password is required")
     @Size(min = 8,message = "Password must be at least 8 digit")
     private String password;

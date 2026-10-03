@@ -2,6 +2,7 @@ package org.riteshingle.campusgig.Controller;
 
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import org.riteshingle.campusgig.AdminRequestDTO.ResetPasswordRequestDTO;
 import org.riteshingle.campusgig.AdminResponseDTO.*;
 import org.riteshingle.campusgig.AdminRequestDTO.AdminAuthDTO;
 //import org.riteshingle.campusgig.AdminRequestDTO.AdminSendMailRequestDTO;
@@ -48,6 +49,25 @@ public class AdminController {
         Pageable pageable = PageRequest.of(page-1,size,Sort.Direction.fromString(direction),field);
         return ResponseEntity.ok(adminService.admins(pageable,keyword));
     }
+
+    @PatchMapping("/reset-password")
+    public ResponseEntity<?> resetPassword(@RequestBody ResetPasswordRequestDTO dto) {
+        adminService.resetPassword(dto.getOldPassword(),dto.getNewPassword(),dto.getConfirmPassword());
+        return ResponseEntity.status(HttpStatus.CREATED).build();
+    }
+
+    @GetMapping("/forgot-password")
+    public ResponseEntity<?> forgotPasswordOTP(@RequestParam String email) {
+        adminService.forgetPasswordOTP(email);
+        return ResponseEntity.status(HttpStatus.CREATED).build();
+    }
+
+    @PatchMapping("/forgot-password")
+    public ResponseEntity<?> forgotPassword(@RequestParam String email, @RequestParam String otp, @RequestParam String newPassword) {
+        adminService.forgotPassword(email,otp,newPassword);
+        return ResponseEntity.status(HttpStatus.CREATED).build();
+    }
+
 
     @PatchMapping("/admin-access")
     public ResponseEntity<Map<String, String>> adminAccess(@RequestParam Long id,@RequestParam String status) {

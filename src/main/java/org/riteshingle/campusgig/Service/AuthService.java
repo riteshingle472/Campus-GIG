@@ -4,10 +4,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.aspectj.weaver.ast.Test;
 import org.riteshingle.campusgig.Enum.Roles;
-import org.riteshingle.campusgig.Exception.BadRequestException;
-import org.riteshingle.campusgig.Exception.ConflictException;
-import org.riteshingle.campusgig.Exception.ResourceNotFoundException;
-import org.riteshingle.campusgig.Exception.UnauthorizedException;
+import org.riteshingle.campusgig.Exception.*;
 import org.riteshingle.campusgig.JwtUtils.JwtUtils;
 import org.riteshingle.campusgig.Model.*;
 import org.riteshingle.campusgig.RequestDTO.*;
@@ -110,7 +107,11 @@ public class AuthService {
                 "\n" +
                 "This is an automated email. Please do not reply directly to this email.\n";
 
-        emailService.sendMail(user.getEmail(),subject,body);
+        try {
+            emailService.sendMail(user.getEmail(),subject,body);
+        }catch (Exception e){
+            throw  new EmailSendingException("Failed to send User Welcome email"+ e);
+        }
         userEntityRepository.save(user);
     }
 
@@ -201,8 +202,10 @@ public class AuthService {
             throw new BadRequestException("Old password is incorrect");
 
 //        Match new and Confirm password
-        if(dto.getNewPassword().equals(dto.getConfirmPassword()))
+        if(dto.getNewPassword().equals(dto.getConfirmPassword())){
             currentProfile.setPassword(passwordEncoder.encode(dto.getNewPassword()));
+            userEntityRepository.save(currentProfile);
+        }
         else throw new BadRequestException("Incorrect password..");
     }
 
@@ -237,7 +240,11 @@ public class AuthService {
                 "\n" +
                 "This is an automated email. Please do not reply directly to this email.\n";
 
-        emailService.sendMail(currentProfile.getEmail(),subject,body);
+        try {
+            emailService.sendMail(currentProfile.getEmail(),subject,body);
+        }catch (Exception e){
+            throw  new EmailSendingException("Failed to send Verification OPT email"+ e);
+        }
     }
 
 //    Verify Email
@@ -302,7 +309,11 @@ public class AuthService {
                 "\n" +
                 "This is an automated email. Please do not reply directly to this email.\n";
 
-        emailService.sendMail(user.getEmail(),subject,body);
+        try {
+            emailService.sendMail(user.getEmail(),subject,body);
+        }catch (Exception e){
+            throw  new EmailSendingException("Failed to send Forget Password OTP email"+ e);
+        }
 
     }
 
@@ -423,7 +434,7 @@ public class AuthService {
     }
 
     //    Generate 6 Digit Random Number
-    private String generateSixDigitOTP(){
+    public String generateSixDigitOTP(){
         int otp = 100000 + random.nextInt(900000);
         return String.valueOf(otp);
     }

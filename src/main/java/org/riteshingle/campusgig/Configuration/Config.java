@@ -73,9 +73,9 @@ public class Config {
                                 "/swagger-ui.html",
                                 "/swagger-ui/**"
                         ).permitAll()
-                                // Serve uploaded profile images publicly
-                                .requestMatchers("/uploads/**").permitAll()
-                           // Everything else requires authentication
+                        // Serve uploaded profile images publicly
+                        .requestMatchers("/uploads/**").permitAll()
+                        // Everything else requires authentication
                         .anyRequest().authenticated()
                 )
                 // Stateless authentication

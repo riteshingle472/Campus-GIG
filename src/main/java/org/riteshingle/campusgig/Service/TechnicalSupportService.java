@@ -48,7 +48,7 @@ public class TechnicalSupportService {
                 "Campus GIG Team";
 
         try {
-            emailService.sendMail(currentProfile.getEmail(),subject,body);
+//            emailService.sendMail(currentProfile.getEmail(),subject,body);
         }catch (Exception e){
             throw  new EmailSendingException("Failed to send technical support confirmation email"+ e);
         }

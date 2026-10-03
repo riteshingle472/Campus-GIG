@@ -13,6 +13,7 @@ import org.riteshingle.campusgig.AdminRequestDTO.AdminAuthDTO;
 import org.riteshingle.campusgig.ResponseDTO.*;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -29,12 +30,14 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.temporal.TemporalAdjusters;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 
 @Service
 @RequiredArgsConstructor
 @Transactional
 public class AdminService {
     private final JwtUtils jwtUtils;
+    private final AuthService authService;
     private final EmailService emailService;
     private final GigRepository gigRepository;
     private final JobRepository jobRepository;
@@ -44,6 +47,7 @@ public class AdminService {
     private final ContractRepository contractRepository;
     private final UserEntityRepository userEntityRepository;
     private final UserSkillsRepository userSkillsRepository;
+    private final RedisTemplate<String,Object> redisTemplate;
     private final JobApplicationRepository jobApplicationRepository;
     private final TechnicalSupportRepository technicalSupportRepository;
     private final AdminRefreshTokenRepository adminRefreshTokenRepository;
@@ -73,15 +77,45 @@ public class AdminService {
                 .fullName(dto.getFullName())
                 .contactNo(dto.getContactNo())
                 .roles(roles)
-                .adminStatus(AdminStatus.ACTIVE)
+                .adminStatus(AdminStatus.PENDING)
                 .adminAccessStatus(AdminAccessStatus.PENDING)
                 .build();
 
         if(mainAdminEmail.equals(admin.getEmail())){
+            admin.setAdminStatus(AdminStatus.ACTIVE);
             admin.setAdminAccessStatus(AdminAccessStatus.ALLOWED);
         }
 
         adminRepository.save(admin);
+
+        String subject = "Welcome to Campus GIG – Admin Registration Successful";
+        String body = "Hi "+admin.getFullName()+",\n" +
+                "\n" +
+                "Welcome to Campus GIG!\n" +
+                "\n" +
+                "Your Admin account has been successfully registered.\n" +
+                "\n" +
+                "Your account status is currently **PENDING**. Once your account is approved by the authorized Admin, you will be able to log in to the Campus GIG web application using your registered credentials.\n" +
+                "\n" +
+                "You will receive a confirmation email once your account has been approved.\n" +
+                "\n" +
+                "Thank you for joining Campus GIG.\n" +
+                "\n" +
+                "Best Regards,\n" +
+                "**Team Campus GIG**\n" +
+                "\n" +
+                "━━━━━━━━━━━━━━━━━━━━\n" +
+                "**CAMPUS GIG**\n" +
+                "*Empowering Students. Connecting Opportunities.*\n" +
+                "━━━━━━━━━━━━━━━━━━━━\n" +
+                "\n" +
+                "This is an automated email. Please do not reply directly to this email.\n";
+
+        try {
+//            emailService.sendMail(admin.getEmail(),subject,body);
+        }catch (Exception e){
+            throw  new EmailSendingException("Failed to send Welcome email"+ e);
+        }
     }
 
 //    Admin Login
@@ -98,6 +132,9 @@ public class AdminService {
 
         if (admin.getAdminAccessStatus() == AdminAccessStatus.DENIED)
             throw new UnauthorizedException("Your admin access has been denied");
+
+        if(!admin.getAdminStatus().equals(AdminStatus.ACTIVE))
+              throw new ForbiddenException("You aren't Login to Admin Panel Your Admin Status is : "+admin.getAdminStatus());
 
 //        Authentication Manager for matching password
         try {adminAuthenticationManager.authenticate(new UsernamePasswordAuthenticationToken(dto.getEmail(),dto.getPassword()));}
@@ -193,7 +230,7 @@ public class AdminService {
         Admin admin = adminRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Admin not found by Id : " + id));
 
 //        Main admin can't set access status on own
-        if(currentAdmin.getId().equals(admin.getId()))
+        if(currentAdmin.getEmail().equals(admin.getEmail()))
             throw new BadRequestException("You can't perform this action on yourself");
 
 //        Validate admin access status
@@ -208,7 +245,138 @@ public class AdminService {
 //        set and save changes
         admin.setAdminAccessStatus(adminAccessStatus);
         adminRepository.save(admin);
+
+        String subject;
+        String body;
+        if(adminAccessStatus.equals(AdminAccessStatus.ALLOWED)){
+            subject = "Admin Account Approved – Campus GIG";
+            body = "Hi "+admin.getFullName()+",\n" +
+                    "\n" +
+                    "Congratulations! \uD83C\uDF89\n" +
+                    "\n" +
+                    "We are pleased to inform you that your **Campus GIG Admin account has been successfully approved**.\n" +
+                    "\n" +
+                    "You can now log in to the **Campus GIG Admin Panel** using your registered credentials and start managing the platform.\n" +
+                    "\n" +
+                    "Welcome to the Campus GIG Admin Team!\n" +
+                    "\n" +
+                    "Best Regards,\n" +
+                    "**Team Campus GIG**\n" +
+                    "\n" +
+                    "━━━━━━━━━━━━━━━━━━━━\n" +
+                    "**CAMPUS GIG**\n" +
+                    "━━━━━━━━━━━━━━━━━━━━\n" +
+                    "\n" +
+                    "This is an automated email. Please do not reply directly to this email.\n";
+            admin.setAdminStatus(AdminStatus.ACTIVE);
+        }else {
+            subject = "Admin Account Approved – Campus GIG";
+            body = "Hi "+admin.getEmail()+",\n" +
+                    "\n" +
+                    "We would like to inform you that your Campus GIG Admin account registration has been denied**.\n" +
+                    "\n" +
+                    "Unfortunately, you are currently not authorized to log in to the **Campus GIG Admin Panel** using this account.\n" +
+                    "\n" +
+                    "If you believe this decision was made by mistake or you require further information, please contact the Campus GIG support team.\n" +
+                    "\n" +
+                    "Thank you for your understanding.\n" +
+                    "\n" +
+                    "Best Regards,\n" +
+                    "**Team Campus GIG**\n" +
+                    "\n" +
+                    "━━━━━━━━━━━━━━━━━━━━\n" +
+                    "**CAMPUS GIG**\n" +
+                    "━━━━━━━━━━━━━━━━━━━━\n" +
+                    "\n" +
+                    "This is an automated email. Please do not reply directly to this email.\n";
+
+            admin.setAdminStatus(AdminStatus.InACTIVE);
+        }
+
+        try {
+//            emailService.sendMail(admin.getEmail(),subject,body);
+        }catch (Exception e){
+            throw  new EmailSendingException("Failed to send technical support confirmation email"+ e);
+        }
     }
+
+    public void forgetPasswordOTP(String email){
+//        Find Admin by Email
+        Admin admin = adminRepository.findByEmail(email).orElseThrow(() -> new ResourceNotFoundException("Admin not found ..."));
+//        Generate 6 Digit OTP
+        String otp = authService.generateSixDigitOTP();
+//        Creating Redis Key for storing OTP in Redis
+        String key = "Forgot_Password:"+admin.getId()+":OTP:";
+
+//        Set OTP in redis
+        redisTemplate.opsForValue().set(key,otp,5, TimeUnit.MINUTES);
+
+//        Email Subject and Body to sent OTP on mail
+        String subject = "Password Reset OTP";
+        String body = "Hi "+admin.getFullName()+",\n" +
+                "\n" +
+                "We received a request to reset your password for your Campus GIG account.\n" +
+                "\n" +
+                "Your password reset OTP is:\n" +
+                "\n" +
+                "** "+otp+" **\n" +
+                "\n" +
+                "This OTP is valid for 5 minutes**. Please do not share this OTP with anyone.\n" +
+                "\n" +
+                "If you didn't request a password reset, you can safely ignore this email.\n" +
+                "\n" +
+                "Best Regards,\n" +
+                "**Team Campus GIG**\n" +
+                "\n" +
+                "━━━━━━━━━━━━━━━━━━━━\n" +
+                "**CAMPUS GIG**\n" +
+                "*Empowering Students. Connecting Opportunities.*\n" +
+                "━━━━━━━━━━━━━━━━━━━━\n" +
+                "\n" +
+                "This is an automated email. Please do not reply directly to this email.\n";
+
+        try {
+            emailService.sendMail(admin.getEmail(),subject,body);
+        }catch (Exception e){
+            throw  new EmailSendingException("Failed to send technical support confirmation email"+ e);
+        }
+    }
+
+    public void forgotPassword(String email,String otp,String newPassword){
+        Admin admin = adminRepository.findByEmail(email).orElseThrow(() -> new ResourceNotFoundException("Admin not found ..."));
+        String key = "Forgot_Password:"+admin.getId()+":OTP:";
+
+        Object redisOTP = redisTemplate.opsForValue().get(key);
+
+        if (redisOTP == null)
+            throw new BadRequestException("OTP has expired. Please request a new OTP.");
+
+        String storedOtp = redisOTP.toString();
+
+//        verify OTP
+        if(otp.equals(storedOtp)){
+//            Change Password and save it in DB
+            admin.setPassword(passwordEncoder.encode(newPassword));
+            adminRepository.save(admin);
+            redisTemplate.delete(key);
+        } else {
+            throw new BadRequestException("Invalid OTP.");
+        }
+    }
+
+    public void resetPassword(String oldPassword,String newPassword,String confirmPassword) {
+        Admin currentAdmin = this.getCurrentAdmin();
+
+        if(!passwordEncoder.matches(oldPassword,currentAdmin.getPassword()))
+            throw new BadRequestException("Old password is incorrect");
+
+        if(newPassword.equals(confirmPassword)) {
+            currentAdmin.setPassword(passwordEncoder.encode(newPassword));
+            adminRepository.save(currentAdmin);
+        }
+        else throw new BadRequestException("Incorrect password..");
+    }
+
 
 //    Dashboard Stats
     public AdminDashboardCardStatsResponseDTO dashboardCardStats(LocalDate from, LocalDate to,
@@ -394,28 +562,61 @@ public class AdminService {
 
 //    Get Gig by ID
     public AdminGigResponseDTO gig(Long gigId) {
+//        Get Current Logged-in Admin
+        Admin currentAdmin = this.getCurrentAdmin();
+
+//        Check Admin is Active And Allowed
+        if (!AdminStatus.ACTIVE.equals(currentAdmin.getAdminStatus()) || !currentAdmin.getAdminAccessStatus().equals(AdminAccessStatus.ALLOWED))
+            throw new UnauthorizedException("Your admin account is not active or approved. You can't do any changes & access the Admin Panel.");
+
         GIG gig = gigRepository.findById(gigId).orElseThrow(() -> new ResourceNotFoundException("GIG not found by ID : " + gigId));
         return adminGigResponseDTO(gig);
     }
 
 //    Fetch All GIGs
     public List<AdminGigResponseDTO> gigs(Pageable pageable) {
+//        Get Current Logged-in Admin
+        Admin currentAdmin = this.getCurrentAdmin();
+
+//        Check Admin is Active And Allowed
+        if (!AdminStatus.ACTIVE.equals(currentAdmin.getAdminStatus()) || !currentAdmin.getAdminAccessStatus().equals(AdminAccessStatus.ALLOWED))
+            throw new UnauthorizedException("Your admin account is not active or approved. You can't do any changes & access the Admin Panel.");
+
         return gigRepository.findAll(pageable).stream().map(this::adminGigResponseDTO).toList();
     }
 
 //    Get Client by ID
     public AdminUserAndClientResponseDTO client(Long clientId) {
+//        Get Current Logged-in Admin
+        Admin currentAdmin = this.getCurrentAdmin();
+
+//        Check Admin is Active And Allowed
+        if (!AdminStatus.ACTIVE.equals(currentAdmin.getAdminStatus()) || !currentAdmin.getAdminAccessStatus().equals(AdminAccessStatus.ALLOWED))
+            throw new UnauthorizedException("Your admin account is not active or approved. You can't do any changes & access the Admin Panel.");
+
         UserEntity userEntity = userEntityRepository.findById(clientId).orElseThrow(() -> new ResourceNotFoundException("Client not found by ID : "+clientId));
         return userAndClientResponseDTO(userEntity);
     }
 
 //    Fetch All Clients
     public List<AdminUserAndClientResponseDTO> clients(Pageable pageable) {
+        Admin currentAdmin = this.getCurrentAdmin();
+
+        if (!AdminStatus.ACTIVE.equals(currentAdmin.getAdminStatus()) || !currentAdmin.getAdminAccessStatus().equals(AdminAccessStatus.ALLOWED))
+            throw new UnauthorizedException("Your admin account is not active or approved. You can't do any changes & access the Admin Panel.");
+
         return userEntityRepository.findAll(pageable).stream().map(this::userAndClientResponseDTO).toList();
     }
 
 //    Get Job by ID
     public AdminJobResponseDTO job(Long jobId) {
+//        Get Current Logged-in Admin
+        Admin currentAdmin = this.getCurrentAdmin();
+
+//        Check Admin is Active And Allowed
+        if (!AdminStatus.ACTIVE.equals(currentAdmin.getAdminStatus()) || !currentAdmin.getAdminAccessStatus().equals(AdminAccessStatus.ALLOWED))
+            throw new UnauthorizedException("Your admin account is not active or approved. You can't do any changes & access the Admin Panel.");
+
 //        Get Job By ID
         Job job = jobRepository.findById(jobId).orElseThrow(() -> new ResourceNotFoundException("Job not found by ID : "+jobId));
 //        Convert Job in AdminJobResponseDTO
@@ -428,6 +629,13 @@ public class AdminService {
 
 //    Fetch All Jobs
     public List<AdminJobResponseDTO> jobs(Pageable pageable) {
+//        Get Current Logged-in Admin
+        Admin currentAdmin = this.getCurrentAdmin();
+
+//        Check Admin is Active And Allowed
+        if (!AdminStatus.ACTIVE.equals(currentAdmin.getAdminStatus()) || !currentAdmin.getAdminAccessStatus().equals(AdminAccessStatus.ALLOWED))
+            throw new UnauthorizedException("Your admin account is not active or approved. You can't do any changes & access the Admin Panel.");
+
         List<Job> jobs = jobRepository.findAll(pageable).getContent();
 //        Convert into JobResponseDTO and Return
         return jobs.stream().map(this::jobResponseDTO).toList();
@@ -435,18 +643,39 @@ public class AdminService {
 
 //    Get Job Application by ID
     public AdminJobApplicationResponseDTO jobApplication(Long jobApplicationId) {
+//        Get Current Logged-in Admin
+        Admin currentAdmin = this.getCurrentAdmin();
+
+//        Check Admin is Active And Allowed
+        if (!AdminStatus.ACTIVE.equals(currentAdmin.getAdminStatus()) || !currentAdmin.getAdminAccessStatus().equals(AdminAccessStatus.ALLOWED))
+            throw new UnauthorizedException("Your admin account is not active or approved. You can't do any changes & access the Admin Panel.");
+
         JobApplication jobApplication = jobApplicationRepository.findById(jobApplicationId).orElseThrow(() -> new ResourceNotFoundException("Job Application not found by Job Application ID : "+jobApplicationId));
         return jobApplicationResponseDTO(jobApplication);
     }
 
 //    Fetch All Job Application
     public List<AdminJobApplicationListResponseDTO> jobApplications(Pageable pageable){
+//        Get Current Logged-in Admin
+        Admin currentAdmin = this.getCurrentAdmin();
+
+//        Check Admin is Active And Allowed
+        if (!AdminStatus.ACTIVE.equals(currentAdmin.getAdminStatus()) || !currentAdmin.getAdminAccessStatus().equals(AdminAccessStatus.ALLOWED))
+            throw new UnauthorizedException("Your admin account is not active or approved. You can't do any changes & access the Admin Panel.");
+
         List<JobApplication> content = jobApplicationRepository.findAll(pageable).getContent();
         return content.stream().map(this::jobApplicationListResponseDTO).toList();
     }
 
 //    Fetch All Reports
     public List<AdminReportListResponseDTO> reports(Pageable pageable){
+//        Get Current Logged-in Admin
+        Admin currentAdmin = this.getCurrentAdmin();
+
+//        Check Admin is Active And Allowed
+        if (!AdminStatus.ACTIVE.equals(currentAdmin.getAdminStatus()) || !currentAdmin.getAdminAccessStatus().equals(AdminAccessStatus.ALLOWED))
+            throw new UnauthorizedException("Your admin account is not active or approved. You can't do any changes & access the Admin Panel.");
+
         List<Report> content = reportRepository.findAll(pageable).getContent();
         return content.stream().map(report -> AdminReportListResponseDTO.builder()
                 .reason(report.getReportReason().name())
@@ -461,12 +690,26 @@ public class AdminService {
 
 //    Get Report By ID
     public AdminReportResponseDTO report(Long reportId){
+//        Get Current Logged-in Admin
+        Admin currentAdmin = this.getCurrentAdmin();
+
+//        Check Admin is Active And Allowed
+        if (!AdminStatus.ACTIVE.equals(currentAdmin.getAdminStatus()) || !currentAdmin.getAdminAccessStatus().equals(AdminAccessStatus.ALLOWED))
+            throw new UnauthorizedException("Your admin account is not active or approved. You can't do any changes & access the Admin Panel.");
+
         Report report = reportRepository.findById(reportId).orElseThrow(() -> new ResourceNotFoundException("Report not found by ID : "+reportId));
         return reportResponseDTO(report);
     }
 
 //    Update Report
     public void updateReport(String status,Long id){
+//        Get Current Logged-in Admin
+        Admin currentAdmin = this.getCurrentAdmin();
+
+//        Check Admin is Active And Allowed
+        if (!AdminStatus.ACTIVE.equals(currentAdmin.getAdminStatus()) || !currentAdmin.getAdminAccessStatus().equals(AdminAccessStatus.ALLOWED))
+            throw new UnauthorizedException("Your admin account is not active or approved. You can't do any changes & access the Admin Panel.");
+
 //        Fetch report by ID
         Report report = reportRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Report not found by ID : "+id));
 
@@ -483,10 +726,7 @@ public class AdminService {
         reportRepository.save(report);
     }
 
-    private void validateReportStatusUpdate(
-            ReportStatus currentStatus,
-            ReportStatus newStatus) {
-
+    private void validateReportStatusUpdate(ReportStatus currentStatus,ReportStatus newStatus) {
         if (currentStatus == ReportStatus.RESOLVED || currentStatus == ReportStatus.REJECTED)
             throw new BadRequestException("Report status cannot be updated once it is resolved or rejected");
 
@@ -499,17 +739,38 @@ public class AdminService {
 
 //    Get Technical Issue by ID
     public AdminTechnicalSupportResponseDTO technicalSupport(Long id){
+//        Get Current Logged-in Admin
+        Admin currentAdmin = this.getCurrentAdmin();
+
+//        Check Admin is Active And Allowed
+        if (!AdminStatus.ACTIVE.equals(currentAdmin.getAdminStatus()) || !currentAdmin.getAdminAccessStatus().equals(AdminAccessStatus.ALLOWED))
+            throw new UnauthorizedException("Your admin account is not active or approved. You can't do any changes & access the Admin Panel.");
+
         TechnicalSupport technicalSupport = technicalSupportRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Technical Issue not found.."));
         return technicalSupportResponse(technicalSupport);
     }
 
 //    Get Technical Issues
     public List<AdminTechnicalSupportResponseDTO> technicalSupports(Pageable pageable){
+//        Get Current Logged-in Admin
+        Admin currentAdmin = this.getCurrentAdmin();
+
+//        Check Admin is Active And Allowed
+        if (!AdminStatus.ACTIVE.equals(currentAdmin.getAdminStatus()) || !currentAdmin.getAdminAccessStatus().equals(AdminAccessStatus.ALLOWED))
+            throw new UnauthorizedException("Your admin account is not active or approved. You can't do any changes & access the Admin Panel.");
+
         List<TechnicalSupport> content = technicalSupportRepository.findAll(pageable).getContent();
         return content.stream().map(this::technicalSupportResponse).toList();
     }
 
     public void updateTechnicalIssue(Long id ,String status){
+//        Get Current Logged-in Admin
+        Admin currentAdmin = this.getCurrentAdmin();
+
+//        Check Admin is Active And Allowed
+        if (!AdminStatus.ACTIVE.equals(currentAdmin.getAdminStatus()) || !currentAdmin.getAdminAccessStatus().equals(AdminAccessStatus.ALLOWED))
+            throw new UnauthorizedException("Your admin account is not active or approved. You can't do any changes & access the Admin Panel.");
+
 //        Fetch Technical Support by ID
         TechnicalSupport technicalSupport = technicalSupportRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Technical Support not found ..."));
 
@@ -545,7 +806,11 @@ public class AdminService {
                     "\n" +
                     "This is an automated email. Please do not reply directly to this email.\n";
 
-            emailService.sendMail(reporter.getEmail(),subject,body);
+            try {
+//                emailService.sendMail(reporter.getEmail(),subject,body);
+            }catch (Exception e){
+                throw  new EmailSendingException("Failed to send technical support email"+ e);
+            }
         }
         technicalSupportRepository.save(technicalSupport);
     }
