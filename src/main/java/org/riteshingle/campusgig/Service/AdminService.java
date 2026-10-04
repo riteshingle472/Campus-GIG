@@ -106,7 +106,6 @@ public class AdminService {
                 "\n" +
                 "━━━━━━━━━━━━━━━━━━━━\n" +
                 "**CAMPUS GIG**\n" +
-                "*Empowering Students. Connecting Opportunities.*\n" +
                 "━━━━━━━━━━━━━━━━━━━━\n" +
                 "\n" +
                 "This is an automated email. Please do not reply directly to this email.\n";
@@ -217,6 +216,20 @@ public class AdminService {
         return admins.stream().map(this::adminResponseDTO).toList();
     }
 
+    public AdminResponseDTO adminProfile(){
+        return adminResponseDTO(this.getCurrentAdmin());
+    }
+
+    public AdminResponseDTO adminProfileByID(Long id){
+        Admin currentAdmin = this.getCurrentAdmin();
+
+        if(!currentAdmin.getEmail().equals(mainAdminEmail))
+            throw new BadRequestException("You aren't allowed to View Profile");
+
+        Admin admin = adminRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Admin not found by ID : " + id));
+        return adminResponseDTO(admin);
+    }
+
 //    Approve Admin
     public void adminAccess(String status,Long id){
 //        Get current logged-in Admin
@@ -309,10 +322,10 @@ public class AdminService {
         String key = "Forgot_Password:"+admin.getId()+":OTP:";
 
 //        Set OTP in redis
-        redisTemplate.opsForValue().set(key,otp,5, TimeUnit.MINUTES);
+        redisTemplate.opsForValue().set(key,otp,3, TimeUnit.MINUTES);
 
 //        Email Subject and Body to sent OTP on mail
-        String subject = "Password Reset OTP";
+        String subject = "Reset Password OTP";
         String body = "Hi "+admin.getFullName()+",\n" +
                 "\n" +
                 "We received a request to reset your password for your Campus GIG account.\n" +
@@ -330,7 +343,6 @@ public class AdminService {
                 "\n" +
                 "━━━━━━━━━━━━━━━━━━━━\n" +
                 "**CAMPUS GIG**\n" +
-                "*Empowering Students. Connecting Opportunities.*\n" +
                 "━━━━━━━━━━━━━━━━━━━━\n" +
                 "\n" +
                 "This is an automated email. Please do not reply directly to this email.\n";
@@ -801,7 +813,6 @@ public class AdminService {
                     "\n" +
                     "━━━━━━━━━━━━━━━━━━━━\n" +
                     "**CAMPUS GIG**\n" +
-                    "*Empowering Students. Connecting Opportunities.*\n" +
                     "━━━━━━━━━━━━━━━━━━━━\n" +
                     "\n" +
                     "This is an automated email. Please do not reply directly to this email.\n";
@@ -815,7 +826,7 @@ public class AdminService {
         technicalSupportRepository.save(technicalSupport);
     }
 
-    //    Helper methods (unchanged)
+//    Helper methods (unchanged)
     private AdminGigResponseDTO adminGigResponseDTO(GIG gig) {
         AdminUserAndClientResponseDTO owner = userAndClientResponseDTO(gig.getUser());
         List<String> skills = userSkillsRepository.findSkillByGigId(gig.getId());

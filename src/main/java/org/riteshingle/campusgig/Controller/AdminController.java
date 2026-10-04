@@ -50,6 +50,16 @@ public class AdminController {
         return ResponseEntity.ok(adminService.admins(pageable,keyword));
     }
 
+    @GetMapping("profile")
+    public ResponseEntity<AdminResponseDTO> adminProfile(){
+        return ResponseEntity.ok(adminService.adminProfile());
+    }
+
+    @GetMapping("profile/{id}")
+    public ResponseEntity<AdminResponseDTO> adminProfileByID(@PathVariable Long id){
+        return ResponseEntity.ok(adminService.adminProfileByID(id));
+    }
+
     @PatchMapping("/reset-password")
     public ResponseEntity<?> resetPassword(@RequestBody ResetPasswordRequestDTO dto) {
         adminService.resetPassword(dto.getOldPassword(),dto.getNewPassword(),dto.getConfirmPassword());

@@ -102,7 +102,6 @@ public class AuthService {
                 "\n" +
                 "━━━━━━━━━━━━━━━━━━━━\n" +
                 "**CAMPUS GIG**\n" +
-                "*Empowering Students. Connecting Opportunities.*\n" +
                 "━━━━━━━━━━━━━━━━━━━━\n" +
                 "\n" +
                 "This is an automated email. Please do not reply directly to this email.\n";
@@ -215,7 +214,7 @@ public class AuthService {
         String key = "Verification:"+currentProfile.getId()+":OTP:";
         String otp = this.generateSixDigitOTP();
 
-        redisTemplate.opsForValue().set(key,otp,5,TimeUnit.MINUTES);
+        redisTemplate.opsForValue().set(key,otp,3,TimeUnit.MINUTES);
 
         String subject = "Verify Your Email – Campus GIG";
         String body = "Hi "+currentProfile.getFirstName()+",\n" +
@@ -226,7 +225,7 @@ public class AuthService {
                 "\n" +
                 "**Your Email Verification OTP: "+otp+"**\n" +
                 "\n" +
-                "This OTP is valid for 5 minutes**. Please do not share this OTP with anyone.\n" +
+                "This OTP is valid for 3 minutes**. Please do not share this OTP with anyone.\n" +
                 "\n" +
                 "If you did not create a Campus GIG account, you can safely ignore this email.\n" +
                 "\n" +
@@ -235,7 +234,6 @@ public class AuthService {
                 "\n" +
                 "━━━━━━━━━━━━━━━━━━━━\n" +
                 "**CAMPUS GIG**\n" +
-                "*Empowering Students. Connecting Opportunities.*\n" +
                 "━━━━━━━━━━━━━━━━━━━━\n" +
                 "\n" +
                 "This is an automated email. Please do not reply directly to this email.\n";
@@ -284,7 +282,7 @@ public class AuthService {
         String key = "Forget_Password:"+user.getId()+":OTP:";
         String otp = this.generateSixDigitOTP();
 //        After 2 minutes OTP must get expire
-        redisTemplate.opsForValue().set(key, otp, 5, TimeUnit.MINUTES);
+        redisTemplate.opsForValue().set(key, otp, 3, TimeUnit.MINUTES);
 
         String subject = "Password Reset OTP";
         String body = "Hi "+user.getFirstName()+",\n" +
@@ -295,7 +293,7 @@ public class AuthService {
                 "\n" +
                 "** "+otp+" **\n" +
                 "\n" +
-                "This OTP is valid for 5 minutes**. Please do not share this OTP with anyone.\n" +
+                "This OTP is valid for 3 minutes**. Please do not share this OTP with anyone.\n" +
                 "\n" +
                 "If you did not request a password reset, you can safely ignore this email.\n" +
                 "\n" +
@@ -304,7 +302,6 @@ public class AuthService {
                 "\n" +
                 "━━━━━━━━━━━━━━━━━━━━\n" +
                 "**CAMPUS GIG**\n" +
-                "*Empowering Students. Connecting Opportunities.*\n" +
                 "━━━━━━━━━━━━━━━━━━━━\n" +
                 "\n" +
                 "This is an automated email. Please do not reply directly to this email.\n";
