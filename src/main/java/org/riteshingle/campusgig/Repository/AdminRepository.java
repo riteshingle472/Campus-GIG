@@ -1,6 +1,5 @@
 package org.riteshingle.campusgig.Repository;
 
-import lombok.Data;
 import org.riteshingle.campusgig.Enum.AdminAccessStatus;
 import org.riteshingle.campusgig.Model.Admin;
 import org.riteshingle.campusgig.Model.UserEntity;
@@ -25,6 +24,18 @@ public interface AdminRepository extends JpaRepository<Admin,Long> {
         """)
     Optional<Admin> findByEmailWithRoles(@Param("email") String email);
 
-    @Query("select a from Admin a where (:keyword IS NULL OR a.adminAccessStatus = :keyword)")
-    List<Admin> findAdminByKeywords(@Param("keyword") AdminAccessStatus adminAccessStatus, Pageable pageable);
+    @Query("""
+    SELECT a FROM Admin a
+        WHERE
+            (
+                :keyword IS NULL
+                OR LOWER(a.fullName) LIKE LOWER(CONCAT('%', :keyword, '%'))
+                OR LOWER(a.email) LIKE LOWER(CONCAT('%', :keyword, '%'))
+                OR LOWER(a.adminAccessStatus) LIKE UPPER(CONCAT('%', :keyword, '%'))
+                OR LOWER(a.adminStatus) LIKE UPPER(CONCAT('%', :keyword, '%'))
+                OR LOWER(a.contactNo) LIKE LOWER(CONCAT('%', :keyword, '%'))
+            )
+        AND (:status IS NULL OR a.adminAccessStatus = :status)
+    """)
+    List<Admin> findAdminByKeywords(@Param("status") AdminAccessStatus adminAccessStatus,@Param("keyword") String keyword, Pageable pageable);
 }

@@ -45,9 +45,10 @@ public class AdminController {
                                                          @RequestParam(required = false,defaultValue = "10") int size,
                                                          @RequestParam(required = false,defaultValue = "ASC") String direction,
                                                          @RequestParam(required = false,defaultValue = "createdAt") String field,
+                                                         @RequestParam(required = false) String status,
                                                          @RequestParam(required = false) String keyword){
         Pageable pageable = PageRequest.of(page-1,size,Sort.Direction.fromString(direction),field);
-        return ResponseEntity.ok(adminService.admins(pageable,keyword));
+        return ResponseEntity.ok(adminService.admins(pageable,keyword,status));
     }
 
     @GetMapping("profile")

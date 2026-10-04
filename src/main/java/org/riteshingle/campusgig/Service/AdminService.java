@@ -64,8 +64,11 @@ public class AdminService {
         Optional<Admin> byEmail = adminRepository.findByEmail(dto.getEmail());
 
 //        Throw Conflict Exception if admin already present
-        if (byEmail.isPresent())
-            throw new ConflictException("Admin already Exists with : " + dto.getEmail());
+        if (byEmail.isPresent()){
+            Admin admin = byEmail.get();
+
+//            throw new ConflictException("Admin already Exists with : " + dto.getEmail());
+        }
 
 //        Set Role Admin
         Set<Roles> roles = Set.of(Roles.ADMIN);
@@ -188,6 +191,7 @@ public class AdminService {
         return Map.of("Access Token", accessToken);
     }
 
+//    Get Current Logged-in Admin
     public Admin getCurrentAdmin() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         return adminRepository.findByEmailWithRoles(authentication.getName())
@@ -195,7 +199,7 @@ public class AdminService {
     }
 
 //    Admins
-    public List<AdminResponseDTO> admins(Pageable pageable,String keyword){
+    public List<AdminResponseDTO> admins(Pageable pageable,String keyword,String status){
 //        Get current logged-in Admin
         Admin currentAdmin = getCurrentAdmin();
 
@@ -206,27 +210,33 @@ public class AdminService {
 //        Validate Admin
         AdminAccessStatus adminAccessStatus = null;
 
-        if(keyword != null){
-            try {adminAccessStatus = AdminAccessStatus.valueOf(keyword.trim().toUpperCase());}
-            catch(InvalidStatusException exception){ throw new InvalidStatusException("Invalid status : "+keyword.trim().toUpperCase());}
+        if(status != null){
+            try {adminAccessStatus = AdminAccessStatus.valueOf(status.trim().toUpperCase());}
+            catch(InvalidStatusException exception){ throw new InvalidStatusException("Invalid status : "+status.trim().toUpperCase());}
         }
 //        Fetch all admin by keyword (ALLOWED,PENDING,DENIED)
-        List<Admin> admins = adminRepository.findAdminByKeywords(adminAccessStatus, pageable);
+        List<Admin> admins = adminRepository.findAdminByKeywords(adminAccessStatus, keyword, pageable);
 //        convert and return Admin list into AdminResponseDTO list
         return admins.stream().map(this::adminResponseDTO).toList();
     }
 
+//    Get Current Logged-in Admin Profile
     public AdminResponseDTO adminProfile(){
         return adminResponseDTO(this.getCurrentAdmin());
     }
 
+//    Get Admin Profile by ID
     public AdminResponseDTO adminProfileByID(Long id){
+//        Get Current Logged-in Admin
         Admin currentAdmin = this.getCurrentAdmin();
 
+//        Check Only Main admin can see Admin's Profile
         if(!currentAdmin.getEmail().equals(mainAdminEmail))
             throw new BadRequestException("You aren't allowed to View Profile");
 
+//        Find Admin by ID
         Admin admin = adminRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Admin not found by ID : " + id));
+//        Convert Admin into DTO and return DTO
         return adminResponseDTO(admin);
     }
 
@@ -256,7 +266,17 @@ public class AdminService {
             throw new BadRequestException("Invalid Status Selection : "+adminAccessStatus);
 
 //        set and save changes
-        admin.setAdminAccessStatus(adminAccessStatus);
+        if(adminAccessStatus == AdminAccessStatus.BLOCKED){
+            admin.setAdminStatus(AdminStatus.BLOCKED);
+            admin.setAdminAccessStatus(adminAccessStatus);
+        }else if(adminAccessStatus == AdminAccessStatus.DENIED){
+            admin.setAdminStatus(AdminStatus.BLOCKED);
+            admin.setAdminAccessStatus(adminAccessStatus);
+        }else if(adminAccessStatus == AdminAccessStatus.ALLOWED){
+            admin.setAdminStatus(AdminStatus.ACTIVE);
+            admin.setAdminAccessStatus(adminAccessStatus);
+        }
+
         adminRepository.save(admin);
 
         String subject;
@@ -271,7 +291,7 @@ public class AdminService {
                     "\n" +
                     "You can now log in to the **Campus GIG Admin Panel** using your registered credentials and start managing the platform.\n" +
                     "\n" +
-                    "Welcome to the Campus GIG Admin Team!\n" +
+                    "Welcome to the Campus GIG Admin Team! We look forward to having you contribute to the growth and management of Campus GIG.\n" +
                     "\n" +
                     "Best Regards,\n" +
                     "**Team Campus GIG**\n" +
@@ -281,16 +301,15 @@ public class AdminService {
                     "━━━━━━━━━━━━━━━━━━━━\n" +
                     "\n" +
                     "This is an automated email. Please do not reply directly to this email.\n";
-            admin.setAdminStatus(AdminStatus.ACTIVE);
-        }else {
-            subject = "Admin Account Approved – Campus GIG";
-            body = "Hi "+admin.getEmail()+",\n" +
+        }else if(adminAccessStatus.equals(AdminAccessStatus.DENIED)) {
+            subject = "Admin Account Denied – Campus GIG";
+            body =  "Hi "+admin.getFullName()+",\n" +
                     "\n" +
-                    "We would like to inform you that your Campus GIG Admin account registration has been denied**.\n" +
+                    "We would like to inform you that your **Campus GIG Admin access has been denied**.\n" +
                     "\n" +
-                    "Unfortunately, you are currently not authorized to log in to the **Campus GIG Admin Panel** using this account.\n" +
+                    "You are currently **not authorized to access the Campus GIG Admin Panel** using this account.\n" +
                     "\n" +
-                    "If you believe this decision was made by mistake or you require further information, please contact the Campus GIG support team.\n" +
+                    "If you believe this decision was made by mistake or you require further information regarding your admin access, please contact the Campus GIG support team.\n" +
                     "\n" +
                     "Thank you for your understanding.\n" +
                     "\n" +
@@ -302,8 +321,26 @@ public class AdminService {
                     "━━━━━━━━━━━━━━━━━━━━\n" +
                     "\n" +
                     "This is an automated email. Please do not reply directly to this email.\n";
-
-            admin.setAdminStatus(AdminStatus.InACTIVE);
+        }else {
+            subject = "Admin Account Blocked – Campus GIG";
+            body = "Hi "+admin.getFullName()+",\n" +
+                    "\n" +
+                    "We would like to inform you that your **Campus GIG Admin account has been blocked**.\n" +
+                    "\n" +
+                    "As a result, you are currently **unable to access the Campus GIG Admin Panel** using this account.\n" +
+                    "\n" +
+                    "If you believe your account has been blocked by mistake or you require further information regarding this action, please contact the Campus GIG support team.\n" +
+                    "\n" +
+                    "Thank you for your understanding.\n" +
+                    "\n" +
+                    "Best Regards,\n" +
+                    "**Team Campus GIG**\n" +
+                    "\n" +
+                    "━━━━━━━━━━━━━━━━━━━━\n" +
+                    "**CAMPUS GIG**\n" +
+                    "━━━━━━━━━━━━━━━━━━━━\n" +
+                    "\n" +
+                    "This is an automated email. Please do not reply directly to this email.\n";
         }
 
         try {
