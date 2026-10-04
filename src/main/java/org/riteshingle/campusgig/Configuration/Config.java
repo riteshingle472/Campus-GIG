@@ -64,6 +64,8 @@ public class Config {
                         // Admin authentication
                         .requestMatchers("/api/admin/login").permitAll()
                         .requestMatchers("/api/admin/register").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/admin/forgot-password").permitAll()
+                        .requestMatchers(HttpMethod.PATCH, "/api/admin/forgot-password").permitAll()
                         // User authentication
                         .requestMatchers("/api/auth/**").permitAll()
                         // Swagger / OpenAPI
