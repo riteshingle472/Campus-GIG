@@ -284,10 +284,10 @@ public class AuthService {
 //        After 2 minutes OTP must get expire
         redisTemplate.opsForValue().set(key, otp, 3, TimeUnit.MINUTES);
 
-        String subject = "Password Reset OTP";
+        String subject = "Forgot Password OTP";
         String body = "Hi "+user.getFirstName()+",\n" +
                 "\n" +
-                "We received a request to reset your password for your Campus GIG account.\n" +
+                "We received a request to forgot your password for your Campus GIG account.\n" +
                 "\n" +
                 "Your password reset OTP is:\n" +
                 "\n" +
@@ -295,7 +295,7 @@ public class AuthService {
                 "\n" +
                 "This OTP is valid for 3 minutes**. Please do not share this OTP with anyone.\n" +
                 "\n" +
-                "If you did not request a password reset, you can safely ignore this email.\n" +
+                "If you did not request a forgot password, you can safely ignore this email.\n" +
                 "\n" +
                 "Best Regards,\n" +
                 "**Team Campus GIG**\n" +
