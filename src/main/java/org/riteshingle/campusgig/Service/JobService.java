@@ -649,16 +649,20 @@ public class JobService {
         UserEntity user = gig.getUser();
 
         GigResponseDTO gigResponseDTO = GigResponseDTO.builder()
-                .id(gig.getId())                          // NEW
+                .id(gig.getId())
                 .gigFirstName(user.getFirstName())
                 .gigLastName(user.getLastName())
                 .gigEmail(user.getEmail())
                 .gigPhoneNumber(user.getPhoneNumber())
                 .description(gig.getDescription())
                 .title(gig.getTitle())
+                .jobCategory(gig.getJobCategory().name())
                 .college(gig.getCollege())
                 .department(gig.getDepartment())
                 .semester(gig.getSemester())
+                .averageRating(user.getAverageRating())
+                .totalRating(user.getTotalRatings())
+                .isVerified(user.getIsVerified())
                 .availabilityStatus(gig.getAvailabilityStatus())
                 .build();
 

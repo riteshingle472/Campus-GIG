@@ -5,7 +5,9 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.riteshingle.campusgig.Enum.AvailabilityStatus;
+import org.springframework.data.redis.connection.BitFieldSubCommands;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 @Data
@@ -23,6 +25,9 @@ public class GigResponseDTO {
     private String college;
     private String department;
     private Integer semester;
+    private Long totalRating;
+    private Double averageRating;
+    private Boolean isVerified;
     private String description;
     private AvailabilityStatus availabilityStatus;
     private List<SkillResponseDTO> gigSkills;
