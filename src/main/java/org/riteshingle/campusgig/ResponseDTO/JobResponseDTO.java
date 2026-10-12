@@ -22,6 +22,7 @@ public class JobResponseDTO {
     private String category;
     private String jobStatus;
     private String experience;
+    private ClientResponseDTO clientResponseDTO;
     private LocalDateTime publishAt;
     private String clientFirstName;
     private String clientLastName;

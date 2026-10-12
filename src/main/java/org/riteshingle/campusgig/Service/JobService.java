@@ -7,10 +7,8 @@ import org.riteshingle.campusgig.Exception.*;
 import org.riteshingle.campusgig.Model.*;
 import org.riteshingle.campusgig.Repository.*;
 import org.riteshingle.campusgig.RequestDTO.JobRequestDTO;
-import org.riteshingle.campusgig.ResponseDTO.GigResponseDTO;
-import org.riteshingle.campusgig.ResponseDTO.SkillResponseDTO;
-import org.riteshingle.campusgig.ResponseDTO.JobApplicantResponseDTO;
-import org.riteshingle.campusgig.ResponseDTO.JobResponseDTO;
+import org.riteshingle.campusgig.RequestDTO.JobsSpecificationRequestDTO;
+import org.riteshingle.campusgig.ResponseDTO.*;
 import org.riteshingle.campusgig.Specification.JobSpecification;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -24,6 +22,7 @@ import tools.jackson.databind.ObjectMapper;
 import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.*;
 
 @Service
@@ -40,6 +39,7 @@ public class JobService {
     private final ConversationRepository conversationRepository;
     private final RedisTemplate<String, Object> redisTemplate;
     private final NotificationService notificationService;
+    private final ReviewRepository reviewRepository;
 
 
 //    For -> client
@@ -102,11 +102,51 @@ public class JobService {
 
 //    For -> GIG
 //    Get All Jobs
-    public List<JobResponseDTO> getJobs(Pageable pageable, BigDecimal min,BigDecimal max) {
+    public List<JobResponseDTO> getJobs(String search, Pageable pageable, JobsSpecificationRequestDTO dto) {
         Specification<Job> specification = JobSpecification.hasStatus(JobStatus.OPEN);
+        specification = specification.and(JobSpecification.hasSearch(search));
 
-        if (max != null) specification = specification.and(JobSpecification.maxBudget(max));
-        if (min != null) specification = specification.and(JobSpecification.minBudget(min));
+        if(dto != null){
+            LocalDate today = LocalDate.now();
+            LocalDate minDeadline = dto.getMinDeadline() != null ? dto.getMinDeadline() : today;
+            LocalDate maxDeadline = dto.getMaxDeadline() != null ? dto.getMaxDeadline() : null;
+
+            if (minDeadline.isBefore(today)) minDeadline = today;
+
+            specification = specification.and(JobSpecification.hasMinDeadline(minDeadline));
+
+            if (maxDeadline != null)
+                specification = specification.and(JobSpecification.hasMaxDeadline(maxDeadline));
+
+            if(dto.getMinBudget() != null)
+                specification = specification.and(JobSpecification.minBudget(dto.getMinBudget()));
+
+            if(dto.getMaxBudget() != null)
+                specification = specification.and(JobSpecification.maxBudget(dto.getMaxBudget()));
+
+            JobCategory jobCategory;
+            ExperienceLevel experienceLevel;
+
+//        Search and Validate Enum
+            if(dto.getJobCategory() != null){
+                try{
+                    jobCategory = JobCategory.valueOf(dto.getJobCategory().trim().toUpperCase());
+                    specification = specification.and(JobSpecification.hasCategory(jobCategory));
+                }catch (IllegalArgumentException e){
+                    throw new IllegalArgumentException("Invalid Status Selection..");
+                }
+            }
+
+            if(dto.getExperienceLevel() != null){
+                try{
+                    experienceLevel = ExperienceLevel.valueOf(dto.getExperienceLevel().trim().toUpperCase());
+                    specification = specification.and(JobSpecification.experienceLevel(experienceLevel));
+                }catch (IllegalArgumentException e){
+                    throw new IllegalArgumentException("Invalid Status Selection..");
+                }
+            }
+
+        }
 
 //        Fetch all jobs
         List<Job> jobs = jobRepository.findAll(specification,pageable).getContent();
@@ -117,7 +157,12 @@ public class JobService {
 //    Get a job by ID
     public JobResponseDTO getJob(Long id) {
         Job job = jobRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Job not found with : " + id));
-        return responseDTO(job);
+
+        ClientResponseDTO clientResponseDTO = clientResponse(job.getClient());
+        JobResponseDTO jobResponseDTO = responseDTO(job);
+
+        jobResponseDTO.setClientResponseDTO(clientResponseDTO);
+        return jobResponseDTO;
     }
 
 //    For -> client
@@ -534,6 +579,32 @@ public class JobService {
                 .jobStatus(job.getJobStatus().name())
                 .clientFirstName(job.getClient().getFirstName())   // NEW
                 .clientLastName(job.getClient().getLastName())     // NEW
+                .build();
+    }
+
+    private ClientResponseDTO clientResponse(UserEntity client){
+        List<Review> clientsReview = reviewRepository.findClientsReview(client.getId());
+
+        List<ReviewResponseDTO> list = clientsReview.stream().map(review -> ReviewResponseDTO.builder()
+                .name(review.getReviewer().getFirstName() + " " + review.getReviewer().getLastName())
+                .createdAt(review.getCreatedAt())
+                .comment(review.getComment() == null ? "" : review.getComment())
+                .rating(review.getRating())
+                .build()
+        ).toList();
+
+        return ClientResponseDTO.builder()
+                .id(client.getId())
+                .averageRating(client.getAverageRating())
+                .profileImage(client.getProfileImage() == null ? "" : client.getProfileImage())
+                .dob(client.getDob())
+                .email(client.getEmail())
+                .createdAt(client.getCreatedAt())
+                .firstName(client.getFirstName())
+                .lastName(client.getLastName())
+                .isVerified(client.getIsVerified())
+                .reviewResponseDTOS(list)
+                .totalRating(client.getTotalRatings())
                 .build();
     }
 

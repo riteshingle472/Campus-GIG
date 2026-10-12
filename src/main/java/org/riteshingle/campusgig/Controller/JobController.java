@@ -2,6 +2,7 @@ package org.riteshingle.campusgig.Controller;
 
 import lombok.RequiredArgsConstructor;
 import org.riteshingle.campusgig.RequestDTO.JobRequestDTO;
+import org.riteshingle.campusgig.RequestDTO.JobsSpecificationRequestDTO;
 import org.riteshingle.campusgig.ResponseDTO.JobApplicantResponseDTO;
 import org.riteshingle.campusgig.ResponseDTO.JobResponseDTO;
 import org.riteshingle.campusgig.Service.GigService;
@@ -41,10 +42,10 @@ public class JobController {
                                                         @RequestParam(defaultValue = "10", required = false) int pageSize,
                                                         @RequestParam(defaultValue = "budget", required = false) String byField,
                                                         @RequestParam(defaultValue = "ASC", required = false) String direction,
-                                                        @RequestParam(required = false) BigDecimal min,
-                                                        @RequestParam(required = false) BigDecimal max) {
+                                                        @RequestParam(required = false) String search,
+                                                        @RequestBody(required = false) JobsSpecificationRequestDTO jobsSpecificationRequestDTO) {
         Pageable pageable = PageRequest.of(pageNumber - 1, pageSize, Sort.Direction.fromString(direction), byField);
-        return ResponseEntity.ok(jobService.getJobs(pageable, min, max));
+        return ResponseEntity.ok(jobService.getJobs(search,pageable,jobsSpecificationRequestDTO));
     }
 
 //    Get Job

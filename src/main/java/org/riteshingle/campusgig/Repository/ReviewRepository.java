@@ -17,4 +17,7 @@ public interface ReviewRepository extends JpaRepository<Review,Long> {
     Page<Review> findByRevieweeId(Long revieweeId, Pageable pageable);
 
     Optional<Review> findByContractIdAndReviewerId(Long contractId, Long id);
+
+    @Query("select r from Review r where r.reviewee.id = :id")
+    List<Review> findClientsReview(Long id);
 }

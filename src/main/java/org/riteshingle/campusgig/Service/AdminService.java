@@ -65,9 +65,7 @@ public class AdminService {
 
 //        Throw Conflict Exception if admin already present
         if (byEmail.isPresent()){
-            Admin admin = byEmail.get();
-
-//            throw new ConflictException("Admin already Exists with : " + dto.getEmail());
+            throw new ConflictException("Admin already Exists with : " + dto.getEmail());
         }
 
 //        Set Role Admin
