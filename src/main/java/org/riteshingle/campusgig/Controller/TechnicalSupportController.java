@@ -21,18 +21,16 @@ public class TechnicalSupportController {
     private final TechnicalSupportService technicalSupportService;
 
     @PostMapping("technical-support")
-    public ResponseEntity<?> technicalSupport(@Valid @RequestBody TechnicalSupportRequestDTO dto){
-        technicalSupportService.postTechnicalIssue(dto);
-        return ResponseEntity.status(HttpStatus.CREATED).build();
+    public ResponseEntity<TechnicalSupportResponseDTO> technicalSupport(@Valid @RequestBody TechnicalSupportRequestDTO dto){
+        return ResponseEntity.ok(technicalSupportService.postTechnicalIssue(dto));
     }
 
     @GetMapping("technical-supports")
-    public ResponseEntity<List<TechnicalSupportResponseDTO>> myTechnicalReport(@RequestParam(defaultValue = "1") int pageNumber,
-                                                                               @RequestParam(required = false,defaultValue = "10") int page,
+    public ResponseEntity<List<TechnicalSupportResponseDTO>> myTechnicalReport(@RequestParam(defaultValue = "1") int page,
+                                                                               @RequestParam(required = false,defaultValue = "10") int size,
                                                                                @RequestParam(required = false,defaultValue = "createdAt") String field,
                                                                                @RequestParam(required = false,defaultValue = "DESC") String direction){
-        Pageable pageable = PageRequest.of(pageNumber - 1 , page, Sort.by(Sort.Direction.fromString(direction),field));
-        return ResponseEntity.ok(technicalSupportService.getMyTechnicalReports(pageable));
+        return ResponseEntity.ok(technicalSupportService.getMyTechnicalReports(page,size,field,direction));
     }
 
     @GetMapping("technical-support/{id}")

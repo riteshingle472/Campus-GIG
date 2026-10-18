@@ -14,6 +14,7 @@ import org.riteshingle.campusgig.ResponseDTO.*;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -43,11 +44,11 @@ public class AdminService {
     private final JobRepository jobRepository;
     private final PasswordEncoder passwordEncoder;
     private final AdminRepository adminRepository;
+    private final StringRedisTemplate redisTemplate;
     private final ReportRepository reportRepository;
     private final ContractRepository contractRepository;
     private final UserEntityRepository userEntityRepository;
     private final UserSkillsRepository userSkillsRepository;
-    private final RedisTemplate<String,Object> redisTemplate;
     private final JobApplicationRepository jobApplicationRepository;
     private final TechnicalSupportRepository technicalSupportRepository;
     private final AdminRefreshTokenRepository adminRefreshTokenRepository;
@@ -864,7 +865,14 @@ public class AdminService {
 //    Helper methods (unchanged)
     private AdminGigResponseDTO adminGigResponseDTO(GIG gig) {
         AdminUserAndClientResponseDTO owner = userAndClientResponseDTO(gig.getUser());
-        List<String> skills = userSkillsRepository.findSkillByGigId(gig.getId());
+        List<Skills> skills = userSkillsRepository.findSkillByGigId(gig.getId());
+
+        List<SkillResponseDTO> skillResponseDTOS = skills.stream().map(skill -> SkillResponseDTO.builder()
+                .skill(skill.getSkill())
+                .id(skill.getId())
+                .build()
+        ).toList();
+
 
         return AdminGigResponseDTO.builder()
                 .id(gig.getId())
@@ -877,7 +885,7 @@ public class AdminService {
                 .semester(gig.getSemester())
                 .department(gig.getDepartment())
                 .college(gig.getCollege())
-                .skills(skills)
+                .skills(skillResponseDTOS)
                 .build();
     }
 

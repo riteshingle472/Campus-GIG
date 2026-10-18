@@ -63,7 +63,7 @@ public class GigController {
 
 //    Get All GIG Proposals
     @PreAuthorize("hasRole('GIG')")
-    @PostMapping("/proposals")
+    @GetMapping("/proposals")
     public ResponseEntity<List<JobApplicationSortingAndFilteringResponseDTO>> getAllJobApplication(
             @RequestBody JobApplicationFilterAndSortingRequestDTO dto,
             @RequestParam(required = false, defaultValue = "10") int pageSize,
@@ -82,15 +82,13 @@ public class GigController {
 //    edit GIG Profile
     @PreAuthorize("hasRole('GIG')")
     @PatchMapping("/profile")
-    public ResponseEntity<?> editGigProfile(@RequestBody BecomeGigRequestDTO dto) {
-        gigService.editGigProfile(dto);
-        return ResponseEntity.noContent().build();
-
+    public ResponseEntity<GigResponseDTO> editGigProfile(@RequestBody BecomeGigRequestDTO dto) {
+        return ResponseEntity.ok(gigService.editGigProfile(dto));
     }
 
 //    Get GIG Profile by ID
     @PreAuthorize("hasRole('CLIENT') or hasRole('GIG')")
-    @GetMapping("/{gigId}")
+    @GetMapping("/{gigId:\\d+}")
     public ResponseEntity<GigResponseDTO> getGigProfileById(@PathVariable Long gigId) {
         return ResponseEntity.ok(gigService.getGigProfileById(gigId));
     }

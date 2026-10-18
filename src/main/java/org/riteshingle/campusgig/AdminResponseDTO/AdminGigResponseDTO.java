@@ -5,6 +5,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.riteshingle.campusgig.Enum.AvailabilityStatus;
+import org.riteshingle.campusgig.ResponseDTO.SkillResponseDTO;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -23,6 +24,6 @@ public class AdminGigResponseDTO {
     private String description;
     private AvailabilityStatus availabilityStatus;
     private AdminUserAndClientResponseDTO owner;
-    private List<String> skills;
+    private List<SkillResponseDTO> skills;
     private LocalDateTime createdAt;
 }

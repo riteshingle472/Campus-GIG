@@ -14,12 +14,18 @@ import org.riteshingle.campusgig.Model.UserEntity;
 import org.riteshingle.campusgig.Repository.JobRepository;
 import org.riteshingle.campusgig.Repository.SaveJobRepository;
 import org.riteshingle.campusgig.ResponseDTO.BookmarkResponseDTO;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.ObjectMapper;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 @Service
 @RequiredArgsConstructor
@@ -28,6 +34,8 @@ public class BookmarkService {
     private final SaveJobRepository saveJobRepository;
     private final AuthService authService;
     private final JobRepository jobRepository;
+    private final ObjectMapper objectMapper;
+    private final StringRedisTemplate stringRedisTemplate;
 
 //    Bookmark Job
     public void bookmarkJob(Long jobId){
@@ -39,7 +47,7 @@ public class BookmarkService {
 
 //        Check Current Profile Role
 //        Only GIG can Bookmark Job
-        if(currentProfile.getRoles().contains(Roles.GIG))
+        if(!currentProfile.getRoles().contains(Roles.GIG))
             throw new ForbiddenException("You must complete your Gig profile to save jobs");
 
         GIG gig = currentProfile.getGig();
@@ -63,6 +71,7 @@ public class BookmarkService {
     }
 
 //    Remove Bookmark
+    @CacheEvict(value = "Bookmarks",allEntries = true)
     public void removeBookmarkJob(Long jobId){
 //        Get Current Logged-in Profile
         UserEntity currentProfile = authService.getCurrentProfile();
@@ -85,7 +94,7 @@ public class BookmarkService {
     }
 
 //    Get Bookmarks
-    public List<BookmarkResponseDTO> bookmarkJobs(Pageable pageable) {
+    public List<BookmarkResponseDTO> bookmarkJobs(int page,int size) {
 //        Get Current Logged-in Profile
         UserEntity currentProfile = authService.getCurrentProfile();
 
@@ -98,12 +107,25 @@ public class BookmarkService {
         if(currentProfile.getRoles().contains(Roles.GIG))
             throw new ForbiddenException("You must complete your Gig profile to save jobs");
 
+        String key = "Bookmarks:Page:"+page+":size:";
+        try {
+            String json = stringRedisTemplate.opsForValue().get(key);
+            if(json != null && !json.isBlank()){
+                return objectMapper.readValue(json,new TypeReference<>(){});
+            }
+        }catch (Exception e){stringRedisTemplate.delete(key);}
+
 //        Get GIG from Current Profile
         GIG gig = currentProfile.getGig();
 
+        Pageable pageable = PageRequest.of(page-1, size);
+
 //        Fetch Bookmarks by GIG id
         List<Bookmark> byGigId = saveJobRepository.findByGigId(gig.getId(),pageable).getContent();
-        return byGigId.stream().map(this::responseDTO).toList();
+        List<BookmarkResponseDTO> bookmarkResponseDTOList = byGigId.stream().map(this::responseDTO).toList();
+
+        stringRedisTemplate.opsForValue().set(key,objectMapper.writeValueAsString(bookmarkResponseDTOList),15, TimeUnit.MINUTES);
+        return bookmarkResponseDTOList;
     }
 
 //    Helper Methods

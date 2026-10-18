@@ -1,5 +1,7 @@
 package org.riteshingle.campusgig.Configuration;
 
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.fasterxml.jackson.databind.jsontype.impl.LaissezFaireSubTypeValidator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -21,18 +23,22 @@ public class RedisConfiguration {
 
     @Bean
     public RedisTemplate<String,Object> redisTemplate(RedisConnectionFactory connectionFactory){
-        RedisTemplate<String , Object> template = new RedisTemplate<>();
-        template.setKeySerializer(new StringRedisSerializer());
-        template.setValueSerializer(new GenericJacksonJsonRedisSerializer(new ObjectMapper()));
+        RedisTemplate<String, Object> template = new RedisTemplate<>();
         template.setConnectionFactory(connectionFactory);
+        template.setKeySerializer(RedisSerializer.string());
+        template.setHashKeySerializer(RedisSerializer.string());
+        template.setValueSerializer(RedisSerializer.json());
+        template.setHashValueSerializer(RedisSerializer.json());
+        template.afterPropertiesSet();
         return template;
     }
 
     @Bean
     public RedisCacheManager redisCacheManager(RedisConnectionFactory connectionFactory){
         RedisCacheConfiguration configuration = RedisCacheConfiguration.defaultCacheConfig()
-                .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(new GenericJacksonJsonRedisSerializer(new ObjectMapper())))
-                .entryTtl(Duration.ofMinutes(5));
+                .serializeKeysWith(RedisSerializationContext.SerializationPair.fromSerializer(RedisSerializer.string()))
+                .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(RedisSerializer.json()))
+                .entryTtl(Duration.ofMinutes(15));
 
         return RedisCacheManager.builder(connectionFactory)
                 .cacheDefaults(configuration)

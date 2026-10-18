@@ -1,5 +1,6 @@
 package org.riteshingle.campusgig.Repository;
 
+import org.riteshingle.campusgig.Model.Skills;
 import org.riteshingle.campusgig.Model.UserSkills;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -13,6 +14,6 @@ public interface UserSkillsRepository extends JpaRepository<UserSkills ,Long> {
     @Query("SELECT us.skill.id FROM UserSkills us WHERE us.gig.id = :gigId")
     List<Long> findSkillIdsByGigId(@Param("gigId") Long gigId);
 
-    @Query("SELECT us.skill.skill FROM UserSkills us WHERE us.gig.id = :gigId")
-    List<String> findSkillByGigId(@Param("gigId") Long gigId);
+    @Query("SELECT us.skill FROM UserSkills us WHERE us.gig.id = :gigId")
+    List<Skills> findSkillByGigId(@Param("gigId") Long gigId);
 }

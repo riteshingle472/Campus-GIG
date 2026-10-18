@@ -16,6 +16,7 @@ import java.time.LocalDate;
 @NoArgsConstructor
 @AllArgsConstructor
 public class BookmarkResponseDTO {
+    private Long id;
     private String jobTitle;
     private LocalDate deadline;
     private BigDecimal budget;

@@ -30,9 +30,8 @@ public class JobController {
 //    Post Job
     @PreAuthorize("hasRole('CLIENT')")
     @PostMapping("/job")
-    public ResponseEntity<?> createJob(@RequestBody JobRequestDTO dto) {
-        jobService.publishJob(dto);
-        return ResponseEntity.status(HttpStatus.CREATED).build();
+    public ResponseEntity<JobResponseDTO> createJob(@RequestBody JobRequestDTO dto) {
+        return ResponseEntity.ok(jobService.publishJob(dto));
     }
 
 //    Jobs
@@ -44,8 +43,7 @@ public class JobController {
                                                         @RequestParam(defaultValue = "ASC", required = false) String direction,
                                                         @RequestParam(required = false) String search,
                                                         @RequestBody(required = false) JobsSpecificationRequestDTO jobsSpecificationRequestDTO) {
-        Pageable pageable = PageRequest.of(pageNumber - 1, pageSize, Sort.Direction.fromString(direction), byField);
-        return ResponseEntity.ok(jobService.getJobs(search,pageable,jobsSpecificationRequestDTO));
+        return ResponseEntity.ok(jobService.getJobs(pageNumber,pageSize,direction,byField,search ,jobsSpecificationRequestDTO));
     }
 
 //    Get Job
@@ -96,9 +94,8 @@ public class JobController {
 //    Edit Job
     @PreAuthorize("hasRole('CLIENT')")
     @PatchMapping("/job/{id}")
-    public ResponseEntity<?> editJob(@PathVariable Long id, @RequestBody JobRequestDTO dto) {
-        jobService.editJob(dto, id);
-        return ResponseEntity.noContent().build();
+    public ResponseEntity<JobResponseDTO> editJob(@PathVariable Long id, @RequestBody JobRequestDTO dto) {
+        return ResponseEntity.ok(jobService.editJob(dto, id));
     }
 
 //    Edit Draft
@@ -118,19 +115,18 @@ public class JobController {
                                                                              @RequestParam(required = false,defaultValue = "ASC")String direction,
                                                                              @RequestParam(required = false,defaultValue = "createdAt")String field,
                                                                              @RequestParam(required = false,defaultValue = "APPLIED")String keyword) {
-        Pageable pageable = PageRequest.of(page - 1, size,Sort.Direction.fromString(direction),field);
-        return ResponseEntity.ok(jobService.getAllJobApplicants(jobId, pageable,keyword));
+        return ResponseEntity.ok(jobService.getAllJobApplicants(jobId, page,size,direction,field,keyword));
     }
 
 //    My Posted Job
     @PreAuthorize("hasRole('CLIENT')")
     @GetMapping("/my-jobs")
-    public ResponseEntity<List<JobResponseDTO>> getJobsPostByMe(@RequestParam(required = false,defaultValue = "OPEN") String status, @RequestParam(required = false, defaultValue = "1") int page,
+    public ResponseEntity<List<JobResponseDTO>> getJobsPostByMe(@RequestParam(required = false,defaultValue = "OPEN") String status,
+                                                                @RequestParam(required = false, defaultValue = "1") int page,
                                                                 @RequestParam(required = false, defaultValue = "10") int size,
                                                                 @RequestParam(required = false, defaultValue = "ASC") String direction,
                                                                 @RequestParam(required = false, defaultValue = "publishAt") String field){
-        Pageable pageable = PageRequest.of(page - 1, size, Sort.Direction.fromString(direction), field);
-        return ResponseEntity.ok(jobService.getAllJobsPostByMe(status, pageable));
+        return ResponseEntity.ok(jobService.getAllJobsPostByMe(status, page,size,direction,field));
     }
 
 //    Withdrawn Job Proposal By Job ID

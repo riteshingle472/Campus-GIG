@@ -10,24 +10,31 @@ import org.riteshingle.campusgig.RequestDTO.JobRequestDTO;
 import org.riteshingle.campusgig.RequestDTO.JobsSpecificationRequestDTO;
 import org.riteshingle.campusgig.ResponseDTO.*;
 import org.riteshingle.campusgig.Specification.JobSpecification;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.CachePut;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.redis.core.Cursor;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.ScanOptions;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.ObjectMapper;
 
-import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
+@Transactional
 public class JobService {
     private final JobRepository jobRepository;
     private final AuthService authService;
@@ -38,13 +45,15 @@ public class JobService {
     private final ContractRepository contractRepository;
     private final ConversationRepository conversationRepository;
     private final RedisTemplate<String, Object> redisTemplate;
+    private final StringRedisTemplate stringRedisTemplate;
     private final NotificationService notificationService;
     private final ReviewRepository reviewRepository;
 
 
 //    For -> client
 //    publish Job
-    public void publishJob(JobRequestDTO dto) {
+    @CachePut(value = "Job",key = "'Job:' + #result.id")
+    public JobResponseDTO publishJob(JobRequestDTO dto) {
 //        Get Current logged-in user profile
         UserEntity client = authService.getCurrentProfile();
 //        Check client is verified or not
@@ -98,11 +107,15 @@ public class JobService {
             String key = "job:draft:" + client.getId() + ":" + dto.getDraftId();
             redisTemplate.delete(key);
         }
+
+        return responseDTO(job);
     }
 
 //    For -> GIG
 //    Get All Jobs
-    public List<JobResponseDTO> getJobs(String search, Pageable pageable, JobsSpecificationRequestDTO dto) {
+    public List<JobResponseDTO> getJobs(int pageNumber,int pageSize,String direction,String byField ,String search, JobsSpecificationRequestDTO dto) {
+        Pageable pageable = PageRequest.of(pageNumber - 1, pageSize, Sort.Direction.fromString(direction), byField);
+
         Specification<Job> specification = JobSpecification.hasStatus(JobStatus.OPEN);
         specification = specification.and(JobSpecification.hasSearch(search));
 
@@ -155,6 +168,7 @@ public class JobService {
 
 //    For -> GIG
 //    Get a job by ID
+    @Cacheable(value = "Job",key = "'Job:' + #id")
     public JobResponseDTO getJob(Long id) {
         Job job = jobRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Job not found with : " + id));
 
@@ -180,8 +194,7 @@ public class JobService {
             String draftId = UUID.randomUUID().toString();  //Create random draft ID
             String key = "job:draft:" + client.getId() + ":" + draftId;  //creating redis key using userId and draftId
             dto.setDraftId(draftId);
-            String json = objectMapper.writeValueAsString(dto);  //Convert CreateJobRequestDTO object in String JSON
-            redisTemplate.opsForValue().set(key, json, Duration.ofDays(7));  //set key and object in redis with 7 days TTL
+            stringRedisTemplate.opsForValue().set(key, objectMapper.writeValueAsString(dto), Duration.ofDays(7));  //set key and object in redis with 7 days TTL
         } catch (Exception e) {
             throw new DraftSaveException("Failed to serialize draft");
         }
@@ -200,19 +213,13 @@ public class JobService {
         String key = "job:draft:" + client.getId() + ":" + draftId;
 
 //        get value not null
-        Object value = redisTemplate.opsForValue().get(key);
+        String value = stringRedisTemplate.opsForValue().get(key);
 
-        if (value == null) throw new ResourceNotFoundException("Draft not found for key: " + key);
+        if (value == null || value.isBlank()) throw new ResourceNotFoundException("Draft not found for key: " + key);
 
-//        Convert value in String
-        String json = value.toString();
-
-        try {
-//            return value in JSON
-            return objectMapper.readValue   (json, JobRequestDTO.class);
-        } catch (Exception e) {
-            throw new DraftException("Failed to parse json..");
-        }
+//         return value in JSON
+        try {return objectMapper.readValue(value, JobRequestDTO.class);}
+        catch (Exception e) {throw new DraftException("Failed to parse json..");}
     }
 
 //    For -> client
@@ -241,6 +248,7 @@ public class JobService {
 //    For -> client
 //    Delete Job
 //    Soft delete
+    @CacheEvict(value = "Job",key = "'Job:' + #id",beforeInvocation = true)
     public void deleteJob(Long id) {
 //        Get current logged-in user profile
         UserEntity client = authService.getCurrentProfile();
@@ -252,7 +260,7 @@ public class JobService {
         Job job = jobRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Job not found with : " + id));
 
 //        check job client
-        if (job.getClient().getId().equals(client.getId())) {
+        if (job.getClient().getId().equals(client.getId()) && !job.getJobStatus().equals(JobStatus.DELETED) && !job.getJobStatus().equals(JobStatus.CLOSED)) {
 //            Change Job status to DELETED and save in DB
             job.setJobStatus(JobStatus.DELETED);
             jobRepository.save(job);
@@ -277,23 +285,20 @@ public class JobService {
         List<JobRequestDTO> draftJobList = new ArrayList<>();
 //        Travers on set
         for (String key : keys) {
-            String json = Objects.requireNonNull(redisTemplate.opsForValue().get(key)).toString();
-            if (json == null) {
-                continue;
-            }
-            try {
-//                Convert Object in String json and add in list
-                draftJobList.add(objectMapper.readValue(json, JobRequestDTO.class));
-            } catch (Exception e) {
-                throw new DraftException("Failed to parse draft for key:");
-            }
+            String json = stringRedisTemplate.opsForValue().get(key);
+            if (json == null) continue;
+
+//             Convert Object in String json and add in list
+            try {draftJobList.add(objectMapper.readValue(json, JobRequestDTO.class));}
+            catch (Exception e) {throw new DraftException("Failed to parse draft for key:");}
         }
         return draftJobList;
     }
 
 //    For -> Client
 //    Edit Job
-    public void editJob(JobRequestDTO dto, Long jobId) {
+    @CachePut(value = "Job",key = "'Job:' + #jobId")
+    public JobResponseDTO editJob(JobRequestDTO dto, Long jobId) {
         UserEntity client = authService.getCurrentProfile();
 
 //        Check client is verified or not
@@ -347,6 +352,9 @@ public class JobService {
         }
 
         jobRepository.save(job);
+        JobResponseDTO jobResponseDTO = responseDTO(job);
+        jobResponseDTO.setClientResponseDTO(clientResponse(job.getClient()));
+        return jobResponseDTO;
     }
 
 //    For -> Client
@@ -364,10 +372,7 @@ public class JobService {
         validateDraft(dto);
 
         try {
-//            Map object in String
-            String json = objectMapper.writeValueAsString(dto);
-//            Set in redis
-            redisTemplate.opsForValue().set(key, json, Duration.ofDays(7));
+            stringRedisTemplate.opsForValue().set(key, objectMapper.writeValueAsString(dto), Duration.ofDays(7));
         } catch (Exception e) {
             throw new DraftException("Failed to update Draft..");
         }
@@ -375,7 +380,9 @@ public class JobService {
 
 //    For -> Client
 //    Get All Job Applicant
-    public List<JobApplicantResponseDTO> getAllJobApplicants(Long jobId,Pageable pageable,String keyword) {
+    public List<JobApplicantResponseDTO> getAllJobApplicants(Long jobId,int page,int size,String direction,String field,String keyword) {
+        Pageable pageable = PageRequest.of(page - 1, size,Sort.Direction.fromString(direction),field);
+
 //        Get Current logged-in profile
         UserEntity currentProfile = authService.getCurrentProfile();
 //        Get Job by ID
@@ -389,6 +396,16 @@ public class JobService {
         if(!currentProfile.getId().equals(job.getClient().getId()))
             throw new UnauthorizedException("You are not authorized to modify this job");
 
+        String key = "Job_Applicants:"+jobId+":Keyword:"+keyword+":Page:"+page+":Size:"+size+":Direction:"+direction+":Field:"+field;
+        try {
+            String cache = stringRedisTemplate.opsForValue().get(key);
+            if(cache != null && !cache.isBlank()){
+                return objectMapper.convertValue(cache, new TypeReference<>() {});
+            }
+        }catch (Exception e){
+            stringRedisTemplate.delete(key);
+        }
+
 //        Validate Job Application Status
         JobApplicationStatus status;
         try {
@@ -399,12 +416,17 @@ public class JobService {
 
 //        Fetch All job applicants by Job and Job Application Status
         List<JobApplication> jobApplicant = jobApplicationRepository.findJobApplicants(job,pageable,status).getContent();
-        return jobApplicant.stream().map(this::jobApplicantResponse).toList();
+        List<JobApplicantResponseDTO> dtoList = jobApplicant.stream().map(this::jobApplicantResponse).toList();
+
+        stringRedisTemplate.opsForValue().set(key, objectMapper.writeValueAsString(dtoList), 15, TimeUnit.MINUTES);
+        return dtoList;
     }
 
 //    For -> Client
 //    Get all job posted by client
-    public List<JobResponseDTO> getAllJobsPostByMe(String status, Pageable pageable) {
+    public List<JobResponseDTO> getAllJobsPostByMe(String status, int page, int size, String direction, String field) {
+        Pageable pageable = PageRequest.of(page - 1, size, Sort.Direction.fromString(direction), field);
+
 //        Get Current logged-in profile
         UserEntity client = authService.getCurrentProfile();
 
@@ -413,9 +435,20 @@ public class JobService {
         try {jobStatus = JobStatus.valueOf(status.toUpperCase().trim());}
         catch (Exception e){throw new InvalidStatusException("Invalid Job Status : "+status);}
 
+        String key = "Client:"+client.getId()+":Jobs:"+jobStatus+":Page:"+page+":Direction:"+direction+":Field:"+field;
+
+        String cache = stringRedisTemplate.opsForValue().get(key);
+        if (cache != null) {
+            try{return objectMapper.readValue(cache,new TypeReference<>() {});}
+            catch(Exception e){redisTemplate.delete(key);}
+        }
+
 //        Fetch All Jobs
         List<Job> jobs = jobRepository.findJobsByClientIdAndStatus(client.getId(), jobStatus, pageable).getContent();
-        return jobs.stream().map(this::responseDTO).toList();
+
+        List<JobResponseDTO> dtoList = jobs.stream().map(this::responseDTO).toList();
+        stringRedisTemplate.opsForValue().set(key,objectMapper.writeValueAsString(dtoList),15, TimeUnit.MINUTES);
+        return dtoList;
     }
 
 //    For -> client
@@ -586,6 +619,7 @@ public class JobService {
         List<Review> clientsReview = reviewRepository.findClientsReview(client.getId());
 
         List<ReviewResponseDTO> list = clientsReview.stream().map(review -> ReviewResponseDTO.builder()
+                .id(review.getId())
                 .name(review.getReviewer().getFirstName() + " " + review.getReviewer().getLastName())
                 .createdAt(review.getCreatedAt())
                 .comment(review.getComment() == null ? "" : review.getComment())
@@ -666,15 +700,16 @@ public class JobService {
                 .availabilityStatus(gig.getAvailabilityStatus())
                 .build();
 
-        List<String> skillNames = userSkillsRepository.findSkillByGigId(gig.getId());
+        List<Skills> skills = userSkillsRepository.findSkillByGigId(gig.getId());
 
-        List<SkillResponseDTO> skills = skillNames.stream()
-                .map(skillName -> SkillResponseDTO.builder()
-                        .skill(skillName)
+        List<SkillResponseDTO> skillList = skills.stream()
+                .map(skill -> SkillResponseDTO.builder()
+                        .id(skill.getId())
+                        .skill(skill.getSkill())
                         .build())
                 .toList();
 
-        gigResponseDTO.setGigSkills(skills);
+        gigResponseDTO.setGigSkills(skillList);
 
         return JobApplicantResponseDTO.builder()
                 .id(jobApplication.getId())

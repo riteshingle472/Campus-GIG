@@ -1,22 +1,29 @@
 package org.riteshingle.campusgig.Service;
 
 import lombok.RequiredArgsConstructor;
-import org.hibernate.annotations.processing.Find;
 import org.riteshingle.campusgig.Enum.*;
 import org.riteshingle.campusgig.Exception.*;
 import org.riteshingle.campusgig.Model.*;
 import org.riteshingle.campusgig.Repository.ContractRepository;
 import org.riteshingle.campusgig.RequestDTO.ContractCancelOrWithdrawnRequestDTO;
 import org.riteshingle.campusgig.ResponseDTO.ContractDetailsResponseDTO;
+import org.springframework.cache.annotation.CachePut;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.data.domain.Page;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.ObjectMapper;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
+import java.util.Set;
+import java.util.concurrent.TimeUnit;
 
 @Service
 @RequiredArgsConstructor
@@ -24,6 +31,8 @@ import java.util.List;
 public class ContractService {
     private final ContractRepository contractRepository;
     private final AuthService authService;
+    private final ObjectMapper objectMapper;
+    private final StringRedisTemplate stringRedisTemplate;
     private final NotificationService notificationService;
 
 //    Create Contract
@@ -44,7 +53,8 @@ public class ContractService {
     }
 
 //    Set Progress
-    public void setProgress(Long contractId, String progressStatus){
+    @CachePut(value = "Contract",key = "#contractId")
+    public ContractDetailsResponseDTO setProgress(Long contractId, String progressStatus){
 //        Get Contract by ID
         Contract contract = contractRepository.findById(contractId).orElseThrow(() -> new ResourceNotFoundException("Contract not found by ID : " + contractId));
 //        Get Current Logged-in Profile
@@ -69,6 +79,13 @@ public class ContractService {
 //        Setting Progress Status and Save in DB
         contract.setProgressStatus(progress);
         contractRepository.save(contract);
+
+        Set<String> keys = stringRedisTemplate.keys("Contracts:*");
+
+        if (keys != null && !keys.isEmpty()) {
+            stringRedisTemplate.delete(keys);
+        }
+
 //        Sent notification
         notificationService.notify(
                 contract.getClient(),
@@ -77,10 +94,11 @@ public class ContractService {
                 "The progress of \"" + contract.getJob().getTitle() + "\" has been updated to " + progress.name(),
                 contract.getId()
         );
+        return contractDetailsResponseDTO(contract);
     }
 
 //    Contracts
-    public Page<ContractDetailsResponseDTO> getContracts(Pageable pageable, String keyword, LocalDate from, LocalDate to){
+    public List<ContractDetailsResponseDTO> getContracts(int page, int size, String direction, String field ,String keyword, LocalDate from, LocalDate to){
 //        Get Current Logged-in Profile
         UserEntity currentProfile = authService.getCurrentProfile();
 
@@ -99,6 +117,15 @@ public class ContractService {
             throw new BadRequestException("To date cannot be in the future");
         }
 
+        String key = "Contracts:Keyword:"+keyword+"Page:"+page+":Size:"+size+":Direction:"+direction+":field:"+field;
+        try {
+            String json = stringRedisTemplate.opsForValue().get(key);
+            if(json != null && !json.isBlank()) return objectMapper.readValue(json, new TypeReference<>() {});
+        }
+        catch (Exception e) {stringRedisTemplate.delete(key);}
+
+        Pageable pageable = PageRequest.of(page-1, size, Sort.Direction.fromString(direction),field);
+
 //        Set Dates
         LocalDateTime startFrom = from == null ? null : from.atStartOfDay();
         LocalDateTime endTo = to == null ? null : to.atTime(LocalTime.MAX);
@@ -114,12 +141,16 @@ public class ContractService {
         }
 
 //        Fetch current logged-in profile contract by user , contract status , and From & To date
-        Page<Contract> contracts = contractRepository.findMyContracts(currentProfile, contractStatus, startFrom, endTo, pageable);
+        List<Contract> contracts = contractRepository.findMyContracts(currentProfile, contractStatus, startFrom, endTo, pageable).getContent();
 //        Convert in DTO
-        return contracts.map(this::contractDetailsResponseDTO);
+        List<ContractDetailsResponseDTO> contractDetailsResponseDTOList = contracts.stream().map(this::contractDetailsResponseDTO).toList();
+
+        stringRedisTemplate.opsForValue().set(key,objectMapper.writeValueAsString(contractDetailsResponseDTOList),15, TimeUnit.MINUTES);
+        return contractDetailsResponseDTOList;
     }
 
 //    Contract
+    @Cacheable(value = "Contract",key = "#contractId")
     public ContractDetailsResponseDTO getContract(Long contractId){
 //        Fetch Contract by ID
         Contract contract = contractRepository.findById(contractId).orElseThrow(() -> new ResourceNotFoundException("Contract not found by ID : " + contractId));
@@ -137,7 +168,8 @@ public class ContractService {
     }
 
 //    Complete contract
-    public void completeContract(Long contractId){
+    @CachePut(value = "Contract",key = "#contractId")
+    public ContractDetailsResponseDTO completeContract(Long contractId){
 //        Get contract by ID
         Contract contract = contractRepository.findById(contractId).orElseThrow(() -> new ResourceNotFoundException("Contract not found by ID : " + contractId));
 //        Get current Logged-in Profile
@@ -162,6 +194,13 @@ public class ContractService {
 //        Set contract complete and save in DB
         contract.setContractStatus(ContractStatus.COMPLETE);
         contractRepository.save(contract);
+
+        Set<String> keys = stringRedisTemplate.keys("Contracts:*");
+
+        if (keys != null && !keys.isEmpty()) {
+            stringRedisTemplate.delete(keys);
+        }
+
 //        Sent notification
         notificationService.notify(
                 contract.getGig().getUser(),
@@ -170,10 +209,13 @@ public class ContractService {
                 "The contract for \"" + contract.getJob().getTitle() + "\" has been completed.",
                 contract.getId()
         );
+
+        return contractDetailsResponseDTO(contract);
     }
 
 //    Active Contract
-    public void activeContract(Long contractId){
+    @CachePut(value = "Contract",key = "#contractId")
+    public ContractDetailsResponseDTO activeContract(Long contractId){
 //        Get Contract by ID
         Contract contract = contractRepository.findById(contractId).orElseThrow(() -> new ResourceNotFoundException("Contract not found by ID : " + contractId));
 //        Get Current Logged-in Profile
@@ -205,6 +247,13 @@ public class ContractService {
 //        Set Contract Active and save in DB
         contract.setContractStatus(ContractStatus.ACTIVE);
         contractRepository.save(contract);
+
+        Set<String> keys = stringRedisTemplate.keys("Contracts:*");
+
+        if (keys != null && !keys.isEmpty()) {
+            stringRedisTemplate.delete(keys);
+        }
+
         notificationService.notify(
                 contract.getGig().getUser(),
                 NotificationType.CONTRACT_STARTED,
@@ -212,11 +261,13 @@ public class ContractService {
                 "The contract for \"" + contract.getJob().getTitle() + "\" has been started.",
                 contract.getId()
         );
+        return contractDetailsResponseDTO(contract);
     }
 
 //    Cancel or Withdrawn Contract
     @Transactional
-    public void cancelOrWithdrawnContract(Long contractId,ContractCancelOrWithdrawnRequestDTO dto) {
+    @CachePut(value = "Contract",key = "#contractId")
+    public ContractDetailsResponseDTO cancelOrWithdrawnContract(Long contractId,ContractCancelOrWithdrawnRequestDTO dto) {
 //        Find Contract
         Contract contract = contractRepository.findById(contractId).orElseThrow(() ->new ResourceNotFoundException("Contract not found by ID : " + contractId));
 //        Current Logged-in Profile
@@ -276,11 +327,11 @@ public class ContractService {
         notificationService.notify(
                 recipient,
                 NotificationType.CONTRACT_CANCELLED,
-                "Contract " + (action.equals("withdrawn") ? "Withdrawn" : "Cancelled"),
+                "Contract " + (action.equalsIgnoreCase("withdrawn") ? "Withdrawn" : "Cancelled"),
                 "The contract for \"" + contract.getJob().getTitle() + "\" has been " + action + ".",
                 contract.getId()
         );
-
+        return contractDetailsResponseDTO(contract);
     }
 
 //    Helper methods

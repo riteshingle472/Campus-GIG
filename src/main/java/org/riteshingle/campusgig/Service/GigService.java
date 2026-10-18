@@ -1,5 +1,6 @@
 package org.riteshingle.campusgig.Service;
 
+import ch.qos.logback.core.encoder.EchoEncoder;
 import lombok.RequiredArgsConstructor;
 import org.hibernate.sql.Update;
 import org.riteshingle.campusgig.Enum.*;
@@ -17,20 +18,28 @@ import org.riteshingle.campusgig.ResponseDTO.GigResponseDTO;
 import org.riteshingle.campusgig.ResponseDTO.JobApplicationSortingAndFilteringResponseDTO;
 import org.riteshingle.campusgig.ResponseDTO.SkillResponseDTO;
 import org.riteshingle.campusgig.Specification.GigSpecification;
+import org.springframework.cache.annotation.CachePut;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.ObjectMapper;
 
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.TimeUnit;
 
 @Service
 @Transactional
 @RequiredArgsConstructor
 public class GigService {
-
+    private final ObjectMapper objectMapper;
+    private final StringRedisTemplate stringRedisTemplate;
     private final JobApplicationRepository jobApplicationRepository;
     private final AuthService authService;
     private final UserSkillsRepository userSkillsRepository;
@@ -141,6 +150,7 @@ public class GigService {
 
 
 //    GET CURRENT GIG PROFILE
+    @Cacheable(value = "GIG",key = "'Profile'")
     public GigResponseDTO getMyGigProfile() {
 //        Get Current Logged-in Profile
         UserEntity currentProfile = authService.getCurrentProfile();
@@ -151,65 +161,22 @@ public class GigService {
 
 //        Get current user's GIG profile
         GIG gig = currentProfile.getGig();
-//        Convert GIG skills into DTO list
-        List<SkillResponseDTO> skills = gig.getUserSkills().stream()
-                .map(us -> SkillResponseDTO.builder()
-                        .id(us.getSkill().getId())
-                        .skill(us.getSkill().getSkill())
-                        .build())
-                .toList();
-
-        return GigResponseDTO.builder()
-                .id(gig.getId())
-                .gigFirstName(currentProfile.getFirstName())
-                .gigLastName(currentProfile.getLastName())
-                .gigEmail(currentProfile.getEmail())
-                .gigPhoneNumber(currentProfile.getPhoneNumber())
-                .title(gig.getTitle())
-                .jobCategory(gig.getJobCategory().name())
-                .description(gig.getDescription())
-                .availabilityStatus(gig.getAvailabilityStatus())
-                .college(gig.getCollege())
-                .department(gig.getDepartment())
-                .semester(gig.getSemester())
-                .gigSkills(skills)
-                .build();
+        return gigResponseDTO(gig,currentProfile);
     }
 
 //    Get GIG Profile by ID
+    @Cacheable(value = "GIG",key = "'Profile:'+ #gigId")
     public GigResponseDTO getGigProfileById(Long gigId) {
 //        Fetch GIG by id
         GIG gig = gigRepository.findById(gigId).orElseThrow(() -> new ResourceNotFoundException("Gig not found with ID: " + gigId));
         UserEntity user = gig.getUser();
-
-//        Convert GIG skills into DTO list
-        List<SkillResponseDTO> skills = gig.getUserSkills().stream()
-                .map(us -> SkillResponseDTO.builder()
-                        .id(us.getSkill().getId())
-                        .skill(us.getSkill().getSkill())
-                        .build())
-                .toList();
-
-        return GigResponseDTO.builder()
-                .id(gig.getId())
-                .gigFirstName(user.getFirstName())
-                .gigLastName(user.getLastName())
-//                .gigEmail(user.getEmail())
-//                .gigPhoneNumber(user.getPhoneNumber())
-                .title(gig.getTitle())
-                .jobCategory(gig.getJobCategory().name())
-                .description(gig.getDescription())
-                .availabilityStatus(gig.getAvailabilityStatus())
-                .college(gig.getCollege())
-                .department(gig.getDepartment())
-                .semester(gig.getSemester())
-                .gigSkills(skills)
-                .build();
+        return gigResponseDTO(gig,user);
     }
 
 //    EDIT CURRENT GIG PROFILE
     @Transactional
-    public void editGigProfile(BecomeGigRequestDTO dto) {
+    @CachePut(value = "GIG",key = "'Profile'")
+    public GigResponseDTO editGigProfile(BecomeGigRequestDTO dto) {
 //        Get Curren Logged-in Profile
         UserEntity currentProfile = authService.getCurrentProfile();
 
@@ -246,6 +213,7 @@ public class GigService {
 
         // Save existing GIG
         gigRepository.save(gig);
+        return gigResponseDTO(gig,currentProfile);
     }
 
 
@@ -309,6 +277,10 @@ public class GigService {
                 .build();
 
         jobApplicationRepository.save(newJobApplication);
+
+        Set<String> keys = stringRedisTemplate.keys("JobApplications:GIG:*");
+        stringRedisTemplate.delete(keys);
+
         notificationService.notify(job.getClient(),NotificationType.NEW_PROPOSAL, "New Job Proposal",
                 currentProfile.getFirstName() + " has submitted a proposal for \"" + job.getTitle() + "\".",
                 newJobApplication.getId()
@@ -353,6 +325,10 @@ public class GigService {
         jobApplication.setJobApplicationStatus(JobApplicationStatus.WITHDRAWN);
 
         jobApplicationRepository.save(jobApplication);
+
+        Set<String> keys = stringRedisTemplate.keys("JobApplications:GIG:*");
+        stringRedisTemplate.delete(keys);
+
         notificationService.notify(
                 job.getClient(),
                 NotificationType.CONTRACT_CANCELLED,
@@ -395,6 +371,9 @@ public class GigService {
         if (dto.getDeliveryDate() != null) jobApplication.setDeliveryDate(dto.getDeliveryDate());
         if (dto.getCoverLetter() != null) jobApplication.setCoverLetter(dto.getCoverLetter());
         jobApplicationRepository.save(jobApplication);
+
+        Set<String> keys = stringRedisTemplate.keys("JobApplications:GIG:*");
+        stringRedisTemplate.delete(keys);
     }
 
 
@@ -433,6 +412,10 @@ public class GigService {
         jobApplication.setJobApplicationStatus(JobApplicationStatus.WITHDRAWN);
 
         jobApplicationRepository.save(jobApplication);
+
+        Set<String> keys = stringRedisTemplate.keys("JobApplications:GIG:*");
+        stringRedisTemplate.delete(keys);
+
         notificationService.notify(jobApplication.getJob().getClient(),NotificationType.CONTRACT_CANCELLED,"Proposal Withdrawn",
                 currentProfile.getFirstName() + " has withdrawn their proposal for \""+ jobApplication.getJob().getTitle() + "\".",
                 jobApplication.getId()
@@ -451,6 +434,17 @@ public class GigService {
 //        Check profile is verified
         if (!currentProfile.getIsVerified()) throw new ForbiddenException("User is GIG is not varified ..");
 
+        String key = "JobApplications:GIG:"+currentProfile.getGig().getId()
+                +":ApplicationStatus:"+dto.getApplicationStatus()
+                +":Direction:"+dto.getSortDirection()
+                +":Field:"+dto.getSortByField()
+                +":Max:"+dto.getMaxBidAmount()
+                +":Min:"+dto.getMinBidAmount();
+        try {
+            String json = stringRedisTemplate.opsForValue().get(key);
+            if(json != null && !json.isBlank()) return objectMapper.readValue(json, new TypeReference<>() {});
+        }catch (Exception e) {stringRedisTemplate.delete(key);}
+
         GIG gig = currentProfile.getGig();
 
 //        Validate Job Application status
@@ -464,11 +458,14 @@ public class GigService {
                 .and(GigSpecification.budgetLessThan(dto.getMaxBidAmount()))
                 .and(GigSpecification.hasStatus(status));
 
-        return jobApplicationRepository
+        List<JobApplicationSortingAndFilteringResponseDTO> proposals = jobApplicationRepository
                 .findAll(specification, pageable)
                 .stream()
                 .map(this::jobApplicationSortingAndFilteringResponseDTO)
                 .toList();
+
+        stringRedisTemplate.opsForValue().set(key,objectMapper.writeValueAsString(proposals),15, TimeUnit.MINUTES);
+        return proposals;
     }
 
 
@@ -483,6 +480,34 @@ public class GigService {
                 .jobApplicationStatus(jobApplication.getJobApplicationStatus())
                 .coverLetter(jobApplication.getCoverLetter())
                 .deliveryDate(jobApplication.getDeliveryDate())
+                .build();
+    }
+
+    private GigResponseDTO gigResponseDTO(GIG gig,UserEntity currentProfile){
+        List<SkillResponseDTO> skills = gig.getUserSkills().stream()
+                .map(us -> SkillResponseDTO.builder()
+                        .id(us.getSkill().getId())
+                        .skill(us.getSkill().getSkill())
+                        .build())
+                .toList();
+
+        return GigResponseDTO.builder()
+                .id(gig.getId())
+                .gigFirstName(currentProfile.getFirstName())
+                .gigLastName(currentProfile.getLastName())
+                .gigEmail(currentProfile.getEmail())
+                .isVerified(currentProfile.getIsVerified())
+                .gigPhoneNumber(currentProfile.getPhoneNumber())
+                .totalRating(currentProfile.getTotalRatings())
+                .averageRating(currentProfile.getAverageRating())
+                .title(gig.getTitle())
+                .jobCategory(gig.getJobCategory().name())
+                .description(gig.getDescription())
+                .availabilityStatus(gig.getAvailabilityStatus())
+                .college(gig.getCollege())
+                .department(gig.getDepartment())
+                .semester(gig.getSemester())
+                .gigSkills(skills)
                 .build();
     }
 }

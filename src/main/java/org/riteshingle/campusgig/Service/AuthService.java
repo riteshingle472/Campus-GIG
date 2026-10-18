@@ -107,7 +107,7 @@ public class AuthService {
                 "This is an automated email. Please do not reply directly to this email.\n";
 
         try {
-            emailService.sendMail(user.getEmail(),subject,body);
+//            emailService.sendMail(user.getEmail(),subject,body);
         }catch (Exception e){
             throw  new EmailSendingException("Failed to send User Welcome email"+ e);
         }
@@ -307,7 +307,7 @@ public class AuthService {
                 "This is an automated email. Please do not reply directly to this email.\n";
 
         try {
-            emailService.sendMail(user.getEmail(),subject,body);
+//            emailService.sendMail(user.getEmail(),subject,body);
         }catch (Exception e){
             throw  new EmailSendingException("Failed to send Forget Password OTP email"+ e);
         }

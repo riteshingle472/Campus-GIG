@@ -10,11 +10,19 @@ import org.riteshingle.campusgig.Model.UserEntity;
 import org.riteshingle.campusgig.Repository.TechnicalSupportRepository;
 import org.riteshingle.campusgig.RequestDTO.TechnicalSupportRequestDTO;
 import org.riteshingle.campusgig.ResponseDTO.TechnicalSupportResponseDTO;
+import org.springframework.cache.annotation.CachePut;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.ObjectMapper;
 
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 @Service
 @RequiredArgsConstructor
@@ -22,10 +30,13 @@ import java.util.List;
 public class TechnicalSupportService {
     private final EmailService emailService;
     private final AuthService authService;
+    private final ObjectMapper objectMapper;
+    private final StringRedisTemplate stringRedisTemplate;
     private final TechnicalSupportRepository technicalSupportRepository;
 
 //    Post Technical Issue
-    public void postTechnicalIssue(TechnicalSupportRequestDTO dto){
+    @CachePut(value = "TechnicalSupport",key = "#result.id")
+    public TechnicalSupportResponseDTO postTechnicalIssue(TechnicalSupportRequestDTO dto){
 //        Get Current Logged-in Profile
         UserEntity currentProfile = authService.getCurrentProfile();
 //        Create Technical Support Entity
@@ -54,9 +65,11 @@ public class TechnicalSupportService {
         }
 
         technicalSupportRepository.save(technicalSupport);
+        return toResponse(technicalSupport);
     }
 
 //    Get Technical Issue by ID
+    @Cacheable(value = "TechnicalSupport",key = "#id")
     public TechnicalSupportResponseDTO getMyTechnicalIssueById(Long id){
 //        Get Current Logged-in Profile
         UserEntity currentProfile = authService.getCurrentProfile();
@@ -72,13 +85,28 @@ public class TechnicalSupportService {
     }
 
 //    Technical Supports
-    public List<TechnicalSupportResponseDTO> getMyTechnicalReports(Pageable pageable){
+    public List<TechnicalSupportResponseDTO> getMyTechnicalReports(int page, int size,String field,String direction){
 //        Get Current Logged-in Profile
         UserEntity currentProfile = authService.getCurrentProfile();
-//        Fetch Technical Supports (Issue) by current Logged-in user
+
+        String key = "MyTechnicalSupport:page:"+page+":size:"+size+":direction:"+direction+":field:"+field;
+        try {
+            String cacheTechnicalSupports = stringRedisTemplate.opsForValue().get(key);
+            if(cacheTechnicalSupports != null && !cacheTechnicalSupports.isBlank()){
+                return objectMapper.convertValue(cacheTechnicalSupports, new TypeReference<>() {});
+            }
+        }catch (Exception e){
+            stringRedisTemplate.delete(key);
+        }
+
+//        Creating Pageable Object & Fetch Technical Supports (Issue) of current Logged-in user
+        Pageable pageable = PageRequest.of(page - 1 , size, Sort.by(Sort.Direction.fromString(direction),field));
         List<TechnicalSupport> technicalSupportList = technicalSupportRepository.findMyTechnicalSupportReport(currentProfile,pageable);
 //        Convert in DTOs List and return List Response
-        return technicalSupportList.stream().map(this::toResponse).toList();
+        List<TechnicalSupportResponseDTO> technicalSupportResponseDTOsList = technicalSupportList.stream().map(this::toResponse).toList();
+        stringRedisTemplate.opsForValue().set(key,objectMapper.writeValueAsString(technicalSupportResponseDTOsList),15, TimeUnit.MINUTES);
+
+        return technicalSupportResponseDTOsList;
     }
 
 //    Helper methods
