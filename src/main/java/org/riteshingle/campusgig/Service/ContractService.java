@@ -7,8 +7,10 @@ import org.riteshingle.campusgig.Model.*;
 import org.riteshingle.campusgig.Repository.ContractRepository;
 import org.riteshingle.campusgig.RequestDTO.ContractCancelOrWithdrawnRequestDTO;
 import org.riteshingle.campusgig.ResponseDTO.ContractDetailsResponseDTO;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.CachePut;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -53,12 +55,17 @@ public class ContractService {
     }
 
 //    Set Progress
-    @CachePut(value = "Contract",key = "#contractId")
-    public ContractDetailsResponseDTO setProgress(Long contractId, String progressStatus){
+    @Caching(
+        put = {
+                @CachePut(value = "Contract", key = "#contractId")
+        },
+        evict = {
+                @CacheEvict(value = "Contracts",key = "'Contracts:' + #userId + ':*'")
+        }
+    )
+    public ContractDetailsResponseDTO setProgress(Long contractId, String progressStatus, Long userId, UserEntity currentProfile){
 //        Get Contract by ID
         Contract contract = contractRepository.findById(contractId).orElseThrow(() -> new ResourceNotFoundException("Contract not found by ID : " + contractId));
-//        Get Current Logged-in Profile
-        UserEntity currentProfile = authService.getCurrentProfile();
 
 //        Only GIG can set the Progress
         if(!currentProfile.getRoles().contains(Roles.GIG))
@@ -117,7 +124,7 @@ public class ContractService {
             throw new BadRequestException("To date cannot be in the future");
         }
 
-        String key = "Contracts:Keyword:"+keyword+"Page:"+page+":Size:"+size+":Direction:"+direction+":field:"+field;
+        String key = "Contracts:"+currentProfile.getId()+":keyword:"+keyword+"page:"+page+":size:"+size+":direction:"+direction+":field:"+field;
         try {
             String json = stringRedisTemplate.opsForValue().get(key);
             if(json != null && !json.isBlank()) return objectMapper.readValue(json, new TypeReference<>() {});

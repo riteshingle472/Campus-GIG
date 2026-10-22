@@ -396,7 +396,7 @@ public class JobService {
         if(!currentProfile.getId().equals(job.getClient().getId()))
             throw new UnauthorizedException("You are not authorized to modify this job");
 
-        String key = "Job_Applicants:"+jobId+":Keyword:"+keyword+":Page:"+page+":Size:"+size+":Direction:"+direction+":Field:"+field;
+        String key = "Job_Applicants:client:"+currentProfile.getId()+":job:"+jobId+":keyword:"+keyword+":page:"+page+":size:"+size+":direction:"+direction+":field:"+field;
         try {
             String cache = stringRedisTemplate.opsForValue().get(key);
             if(cache != null && !cache.isBlank()){
@@ -435,7 +435,7 @@ public class JobService {
         try {jobStatus = JobStatus.valueOf(status.toUpperCase().trim());}
         catch (Exception e){throw new InvalidStatusException("Invalid Job Status : "+status);}
 
-        String key = "Client:"+client.getId()+":Jobs:"+jobStatus+":Page:"+page+":Direction:"+direction+":Field:"+field;
+        String key = "Client:"+client.getId()+":jobs:"+jobStatus+":page:"+page+":direction:"+direction+":field:"+field;
 
         String cache = stringRedisTemplate.opsForValue().get(key);
         if (cache != null) {

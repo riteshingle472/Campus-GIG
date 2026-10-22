@@ -434,16 +434,16 @@ public class GigService {
 //        Check profile is verified
         if (!currentProfile.getIsVerified()) throw new ForbiddenException("User is GIG is not varified ..");
 
-        String key = "JobApplications:GIG:"+currentProfile.getGig().getId()
-                +":ApplicationStatus:"+dto.getApplicationStatus()
-                +":Direction:"+dto.getSortDirection()
-                +":Field:"+dto.getSortByField()
-                +":Max:"+dto.getMaxBidAmount()
-                +":Min:"+dto.getMinBidAmount();
-        try {
-            String json = stringRedisTemplate.opsForValue().get(key);
-            if(json != null && !json.isBlank()) return objectMapper.readValue(json, new TypeReference<>() {});
-        }catch (Exception e) {stringRedisTemplate.delete(key);}
+//        String key = "JobApplications:GIG:"+currentProfile.getGig().getId()
+//                +":ApplicationStatus:"+dto.getApplicationStatus()
+//                +":Direction:"+dto.getSortDirection()
+//                +":Field:"+dto.getSortByField()
+//                +":Max:"+dto.getMaxBidAmount()
+//                +":Min:"+dto.getMinBidAmount();
+//        try {
+//            String json = stringRedisTemplate.opsForValue().get(key);
+//            if(json != null && !json.isBlank()) return objectMapper.readValue(json, new TypeReference<>() {});
+//        }catch (Exception e) {stringRedisTemplate.delete(key);}
 
         GIG gig = currentProfile.getGig();
 
@@ -464,7 +464,7 @@ public class GigService {
                 .map(this::jobApplicationSortingAndFilteringResponseDTO)
                 .toList();
 
-        stringRedisTemplate.opsForValue().set(key,objectMapper.writeValueAsString(proposals),15, TimeUnit.MINUTES);
+//        stringRedisTemplate.opsForValue().set(key,objectMapper.writeValueAsString(proposals),15, TimeUnit.MINUTES);
         return proposals;
     }
 

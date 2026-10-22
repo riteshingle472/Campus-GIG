@@ -71,18 +71,14 @@ public class BookmarkService {
     }
 
 //    Remove Bookmark
-    @CacheEvict(value = "Bookmarks",allEntries = true)
-    public void removeBookmarkJob(Long jobId){
-//        Get Current Logged-in Profile
-        UserEntity currentProfile = authService.getCurrentProfile();
-
+    public void removeBookmarkJob(Long jobId, Long userId, UserEntity currentProfile){
 //        Check Profile is verified ?
         if(!currentProfile.getIsVerified())
             throw new ForbiddenException("GIG is not Verified");
 
 //        Check Current Profile Role
 //        Only GIG can Remove Bookmark
-        if(currentProfile.getRoles().contains(Roles.GIG))
+        if(!currentProfile.getRoles().contains(Roles.GIG))
             throw new ForbiddenException("You must complete your Gig profile to save jobs");
 
 //        Get GIG from Current Profile
@@ -104,16 +100,16 @@ public class BookmarkService {
 
 //        Check Current Profile Role
 //        Only GIG can Remove Bookmark
-        if(currentProfile.getRoles().contains(Roles.GIG))
+        if(!currentProfile.getRoles().contains(Roles.GIG))
             throw new ForbiddenException("You must complete your Gig profile to save jobs");
 
-        String key = "Bookmarks:Page:"+page+":size:";
-        try {
-            String json = stringRedisTemplate.opsForValue().get(key);
-            if(json != null && !json.isBlank()){
-                return objectMapper.readValue(json,new TypeReference<>(){});
-            }
-        }catch (Exception e){stringRedisTemplate.delete(key);}
+//        String key = "Bookmarks:id:"+currentProfile.getId()+":Page:"+page+":size:"+size;
+//        try {
+//            String json = stringRedisTemplate.opsForValue().get(key);
+//            if(json != null && !json.isBlank()){
+//                return objectMapper.readValue(json,new TypeReference<>(){});
+//            }
+//        }catch (Exception e){stringRedisTemplate.delete(key);}
 
 //        Get GIG from Current Profile
         GIG gig = currentProfile.getGig();
@@ -122,16 +118,16 @@ public class BookmarkService {
 
 //        Fetch Bookmarks by GIG id
         List<Bookmark> byGigId = saveJobRepository.findByGigId(gig.getId(),pageable).getContent();
-        List<BookmarkResponseDTO> bookmarkResponseDTOList = byGigId.stream().map(this::responseDTO).toList();
 
-        stringRedisTemplate.opsForValue().set(key,objectMapper.writeValueAsString(bookmarkResponseDTOList),15, TimeUnit.MINUTES);
-        return bookmarkResponseDTOList;
+//        stringRedisTemplate.opsForValue().set(key,objectMapper.writeValueAsString(bookmarkResponseDTOList),15, TimeUnit.MINUTES);
+        return byGigId.stream().map(this::responseDTO).toList();
     }
 
 //    Helper Methods
     private BookmarkResponseDTO responseDTO(Bookmark bookmark){
         Job job = bookmark.getJob();
         return BookmarkResponseDTO.builder()
+                .id(bookmark.getId())
                 .jobId(job.getId())
                 .jobStatus(job.getJobStatus())
                 .deadline(job.getDeadline())

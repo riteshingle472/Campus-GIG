@@ -3,8 +3,10 @@ package org.riteshingle.campusgig.Controller;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.apache.coyote.Response;
+import org.riteshingle.campusgig.Model.UserEntity;
 import org.riteshingle.campusgig.RequestDTO.ContractCancelOrWithdrawnRequestDTO;
 import org.riteshingle.campusgig.ResponseDTO.ContractDetailsResponseDTO;
+import org.riteshingle.campusgig.Service.AuthService;
 import org.riteshingle.campusgig.Service.ContractService;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -22,6 +24,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class ContractController {
     private final ContractService contractService;
+    private final AuthService authService;
 
 //    Contracts
     @PreAuthorize("hasRole('CLIENT') or hasRole('GIG')")
@@ -47,7 +50,8 @@ public class ContractController {
     @PreAuthorize("hasRole('GIG')")
     @PatchMapping("/progress")
     public ResponseEntity<ContractDetailsResponseDTO> updateProgress(@RequestParam Long contractId,@RequestParam String progress){
-        return ResponseEntity.ok(contractService.setProgress(contractId,progress));
+        UserEntity currentProfile = authService.getCurrentProfile();
+        return ResponseEntity.ok(contractService.setProgress(contractId,progress,currentProfile.getId(),currentProfile));
     }
 
 //    Complete Contract

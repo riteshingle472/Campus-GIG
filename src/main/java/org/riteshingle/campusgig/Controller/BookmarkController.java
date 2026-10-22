@@ -33,7 +33,8 @@ public class BookmarkController {
     @PreAuthorize("hasRole('GIG')")
     @DeleteMapping("/bookmark")
     public ResponseEntity<?> deleteJob(@RequestParam Long jobId){
-        bookmarkService.removeBookmarkJob(jobId);
+        UserEntity currentProfile = authService.getCurrentProfile();
+        bookmarkService.removeBookmarkJob(jobId,currentProfile.getId(),currentProfile);
         return ResponseEntity.noContent().build();
     }
 

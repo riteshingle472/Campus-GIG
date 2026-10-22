@@ -89,7 +89,7 @@ public class TechnicalSupportService {
 //        Get Current Logged-in Profile
         UserEntity currentProfile = authService.getCurrentProfile();
 
-        String key = "MyTechnicalSupport:page:"+page+":size:"+size+":direction:"+direction+":field:"+field;
+        String key = "MyTechnicalSupport:id:"+currentProfile.getId()+":page:"+page+":size:"+size+":direction:"+direction+":field:"+field;
         try {
             String cacheTechnicalSupports = stringRedisTemplate.opsForValue().get(key);
             if(cacheTechnicalSupports != null && !cacheTechnicalSupports.isBlank()){
